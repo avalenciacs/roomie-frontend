@@ -1,8 +1,9 @@
-import { useEffect, useState, useContext } from "react";
+import { useEffect, useMemo, useState, useContext } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../api/api";
 import { AuthContext } from "../context/auth.context";
 import ExpenseForm from "../components/ExpenseForm";
+import TaskForm from "../components/TaskForm";
 
 function FlatDetails() {
   const { flatId } = useParams();
@@ -10,50 +11,75 @@ function FlatDetails() {
 
   const [flat, setFlat] = useState(null);
   const [expenses, setExpenses] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
+  // para desplegar detalles por task
+  const [openTaskId, setOpenTaskId] = useState(null);
+
   const token = localStorage.getItem("authToken");
 
-  // ─────────────────────────
-  // FETCH FLAT
-  // ─────────────────────────
-  const getFlat = async () => {
-    try {
-      const response = await api.get(`/api/flats/${flatId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setFlat(response.data);
-    } catch (error) {
-      console.error(error);
-      alert("Error loading flat");
-    }
+  const nameOrEmail = (u) => u?.name || u?.email || "User";
+
+  const UserNameWithTooltip = ({ u, fallback = "Unassigned" }) => {
+    if (!u) return <span>{fallback}</span>;
+    return <span title={u.email || ""}>{nameOrEmail(u)}</span>;
   };
 
-  // ─────────────────────────
-  // FETCH EXPENSES
-  // ─────────────────────────
+  const statusLabel = (s) => {
+    if (s === "pending") return "Pending";
+    if (s === "doing") return "In progress";
+    if (s === "done") return "Done";
+    return s;
+  };
+
+  const statusBadgeStyle = (s) => {
+    // sin colores explícitos “raros”, solo un estilo básico
+    const base = {
+      display: "inline-block",
+      padding: "2px 8px",
+      borderRadius: 999,
+      fontSize: 12,
+      border: "1px solid #ccc",
+      marginLeft: 8,
+    };
+    if (s === "done") return { ...base, opacity: 0.7 };
+    return base;
+  };
+
+  // ───────── FETCH ─────────
+  const getFlat = async () => {
+    const res = await api.get(`/api/flats/${flatId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setFlat(res.data);
+  };
+
   const getExpenses = async () => {
-    try {
-      const response = await api.get(`/api/flats/${flatId}/expenses`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setExpenses(response.data);
-    } catch (error) {
-      console.error(error);
-      alert("Error loading expenses");
-    }
+    const res = await api.get(`/api/flats/${flatId}/expenses`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setExpenses(res.data);
+  };
+
+  const getTasks = async () => {
+    const res = await api.get(`/api/flats/${flatId}/tasks`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setTasks(res.data);
   };
 
   useEffect(() => {
-    Promise.all([getFlat(), getExpenses()]).finally(() =>
-      setIsLoading(false)
-    );
+    Promise.all([
+      getFlat().catch(() => alert("Error loading flat")),
+      getExpenses().catch(() => alert("Error loading expenses")),
+      getTasks().catch(() => alert("Error loading tasks")),
+    ]).finally(() => setIsLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flatId]);
 
-  // ─────────────────────────
-  // MEMBERS
-  // ─────────────────────────
+  // ───────── MEMBERS ─────────
   const handleAddMember = async (e) => {
     e.preventDefault();
     try {
@@ -65,7 +91,6 @@ function FlatDetails() {
       setEmail("");
       getFlat();
     } catch (error) {
-      console.error(error);
       alert(error?.response?.data?.message || "Error adding member");
     }
   };
@@ -77,32 +102,113 @@ function FlatDetails() {
       });
       getFlat();
     } catch (error) {
-      console.error(error);
       alert(error?.response?.data?.message || "Error removing member");
     }
   };
 
-  // ─────────────────────────
-  // EXPENSES
-  // ─────────────────────────
+  // ───────── EXPENSES ─────────
   const createExpense = async (expenseData) => {
     try {
-      await api.post(
-        `/api/flats/${flatId}/expenses`,
-        expenseData,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.post(`/api/flats/${flatId}/expenses`, expenseData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       getExpenses();
     } catch (error) {
-      console.error(error);
       alert(error?.response?.data?.message || "Error creating expense");
     }
   };
 
+  // ───────── TASKS ─────────
+  const createTask = async (taskData) => {
+    try {
+      // siempre pending al crear (asignada o no)
+      await api.post(
+        `/api/flats/${flatId}/tasks`,
+        { ...taskData, status: "pending" },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      getTasks();
+    } catch (error) {
+      alert(error?.response?.data?.message || "Error creating task");
+    }
+  };
+
+  const assignTaskToMe = async (taskId) => {
+    try {
+      await api.put(
+        `/api/tasks/${taskId}`,
+        { assignedTo: user._id },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      getTasks();
+    } catch (error) {
+      alert(error?.response?.data?.message || "Error assigning task");
+    }
+  };
+
+  const startTask = async (taskId) => {
+    try {
+      await api.put(
+        `/api/tasks/${taskId}`,
+        { status: "doing" },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      getTasks();
+    } catch (error) {
+      alert(error?.response?.data?.message || "Error starting task");
+    }
+  };
+
+  const markTaskDone = async (taskId) => {
+    try {
+      await api.put(
+        `/api/tasks/${taskId}`,
+        { status: "done" },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      getTasks();
+    } catch (error) {
+      alert(error?.response?.data?.message || "Error marking task done");
+    }
+  };
+
+  const deleteTask = async (taskId) => {
+    const ok = window.confirm("Delete this task? This cannot be undone.");
+    if (!ok) return;
+
+    try {
+      await api.delete(`/api/tasks/${taskId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      // si estaba abierto el details, cerrarlo
+      setOpenTaskId((prev) => (prev === taskId ? null : prev));
+      getTasks();
+    } catch (error) {
+      alert(error?.response?.data?.message || "Error deleting task");
+    }
+  };
+
+  // ───────── UI helpers ─────────
+  const toggleDetails = (taskId) => {
+    setOpenTaskId((prev) => (prev === taskId ? null : taskId));
+  };
+
+  const sortedTasks = useMemo(() => {
+    // orden pro: primero pending, luego doing, luego done
+    const rank = { pending: 0, doing: 1, done: 2 };
+    return [...tasks].sort((a, b) => {
+      const ra = rank[a.status] ?? 99;
+      const rb = rank[b.status] ?? 99;
+      if (ra !== rb) return ra - rb;
+      // más recientes arriba
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+  }, [tasks]);
+
   if (isLoading) return <p>Loading...</p>;
   if (!flat) return <p>Flat not found</p>;
 
-  const isOwner = user && String(flat.owner) === String(user._id);
+  const isOwner = String(flat.owner) === String(user._id);
 
   return (
     <div>
@@ -111,16 +217,18 @@ function FlatDetails() {
       <h2>{flat.name}</h2>
       <p>{flat.description}</p>
 
-      <Link to={`/flats/${flatId}/balance`}>View Balance</Link>
+      <div style={{ marginBottom: 12 }}>
+        <Link to={`/flats/${flatId}/balance`}>View Balance</Link>
+      </div>
 
-      {/* ───────── MEMBERS ───────── */}
+      {/* MEMBERS */}
       <h3>Members</h3>
       <ul>
         {flat.members.map((member) => (
-          <li key={member._id}>
-            {member.email}
+          <li key={member._id} title={member.email || ""}>
+            {nameOrEmail(member)}
             {isOwner && member._id !== flat.owner && (
-              <button onClick={() => handleRemoveMember(member._id)}>
+              <button onClick={() => handleRemoveMember(member._id)} style={{ marginLeft: 8 }}>
                 Remove
               </button>
             )}
@@ -129,46 +237,130 @@ function FlatDetails() {
       </ul>
 
       {isOwner && (
-        <>
-          <h4>Add member</h4>
-          <form onSubmit={handleAddMember}>
-            <input
-              type="email"
-              placeholder="member@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            <button type="submit">Add</button>
-          </form>
-        </>
+        <form onSubmit={handleAddMember} style={{ marginBottom: 20 }}>
+          <input
+            type="email"
+            placeholder="member@email.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <button type="submit" style={{ marginLeft: 8 }}>
+            Add member
+          </button>
+        </form>
       )}
 
-      {/* ───────── EXPENSES ───────── */}
+      {/* EXPENSES */}
       <h3>Expenses</h3>
-
-      <ExpenseForm
-        members={flat.members}
-        onCreate={createExpense}
-      />
+      <ExpenseForm members={flat.members} onCreate={createExpense} />
 
       {expenses.length === 0 ? (
         <p>No expenses yet</p>
       ) : (
         <ul>
-          {expenses.map((expense) => (
-            <li key={expense._id}>
-              <strong>{expense.title}</strong> — {expense.amount} €
-              <br />
-              Paid by: {expense.paidBy?.email}
-              <br />
-              Category: {expense.category}
+          {expenses.map((e) => (
+            <li key={e._id} title={e.paidBy?.email || ""}>
+              <strong>{e.title}</strong> — {e.amount}€ ({e.category}) — paid by{" "}
+              {e.paidBy ? nameOrEmail(e.paidBy) : "Unknown"}
             </li>
           ))}
         </ul>
+      )}
+
+      {/* TASKS */}
+      <h3 style={{ marginTop: 24 }}>Tasks</h3>
+      <TaskForm members={flat.members} onCreate={createTask} />
+
+      {sortedTasks.length === 0 ? (
+        <p>No tasks yet</p>
+      ) : (
+        <div style={{ display: "grid", gap: 10 }}>
+          {sortedTasks.map((t) => {
+            const assignedId = t.assignedTo?._id || t.assignedTo || null;
+            const creatorId = t.createdBy?._id || t.createdBy || null;
+
+            const isAssignedToMe =
+              assignedId && String(assignedId) === String(user._id);
+            const isCreator =
+              creatorId && String(creatorId) === String(user._id);
+
+            const isOpen = openTaskId === t._id;
+
+            return (
+              <div
+                key={t._id}
+                style={{
+                  border: "1px solid #ddd",
+                  borderRadius: 10,
+                  padding: 12,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <strong>{t.title}</strong>
+                      <span style={statusBadgeStyle(t.status)}>
+                        {statusLabel(t.status)}
+                      </span>
+                    </div>
+
+                    <div style={{ marginTop: 6, fontSize: 14 }}>
+                      Assigned to: <UserNameWithTooltip u={t.assignedTo} fallback="Unassigned" />
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    {/* Acciones según flujo */}
+                    {!assignedId && (
+                      <button onClick={() => assignTaskToMe(t._id)}>
+                        Assign to me
+                      </button>
+                    )}
+
+                    {isAssignedToMe && t.status === "pending" && (
+                      <button onClick={() => startTask(t._id)}>Start</button>
+                    )}
+
+                    {isAssignedToMe && t.status === "doing" && (
+                      <button onClick={() => markTaskDone(t._id)}>Done</button>
+                    )}
+
+                    <button onClick={() => toggleDetails(t._id)}>
+                      {isOpen ? "Hide" : "Details"}
+                    </button>
+
+                    {isCreator && (
+                      <button onClick={() => deleteTask(t._id)}>Delete</button>
+                    )}
+                  </div>
+                </div>
+
+                {isOpen && (
+                  <div style={{ marginTop: 10, fontSize: 13, borderTop: "1px solid #eee", paddingTop: 10 }}>
+                    <div>
+                      Created by:{" "}
+                      <span title={t.createdBy?.email || ""}>
+                        {t.createdBy ? nameOrEmail(t.createdBy) : "Unknown"}
+                      </span>
+                    </div>
+
+                    <div>
+                      Created at:{" "}
+                      {t.createdAt ? new Date(t.createdAt).toLocaleString() : "-"}
+                    </div>
+
+                    {t.description ? <div style={{ marginTop: 6 }}>Notes: {t.description}</div> : null}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
 }
 
 export default FlatDetails;
+
