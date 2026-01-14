@@ -111,6 +111,8 @@ function FlatDetails() {
       <h2>{flat.name}</h2>
       <p>{flat.description}</p>
 
+      <Link to={`/flats/${flatId}/balance`}>View Balance</Link>
+
       {/* ───────── MEMBERS ───────── */}
       <h3>Members</h3>
       <ul>
@@ -156,7 +158,7 @@ function FlatDetails() {
         <ul>
           {expenses.map((expense) => (
             <li key={expense._id}>
-              <strong>{expense.title}</strong> — {expense.amount} €  
+              <strong>{expense.title}</strong> — {expense.amount} €
               <br />
               Paid by: {expense.paidBy?.email}
               <br />
