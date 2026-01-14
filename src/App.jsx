@@ -5,7 +5,6 @@ import FlatsList from "./pages/FlatsList";
 import CreateFlat from "./pages/CreateFlat";
 import FlatDetails from "./pages/FlatDetails";
 import IsPrivate from "./components/IsPrivate";
-import Balance from "./pages/Balance";
 import FlatBalance from "./pages/FlatBalance";
 
 function App() {
@@ -41,18 +40,14 @@ function App() {
         }
       />
 
-
       <Route
         path="/flats/:flatId/balance"
         element={
           <IsPrivate>
-            <Balance />
+            <FlatBalance />
           </IsPrivate>
         }
       />
-
-      <Route path="/flats/:flatId/balance" element={<FlatBalance />} />
-
     </Routes>
   );
 }
