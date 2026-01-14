@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState, useContext } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import api from "../api/api";
 import { AuthContext } from "../context/auth.context";
+import ResponsiveLayout from "../components/ResponsiveLayout";
+import { Card, CardBody, CardHeader, Pill } from "../components/ui/ui";
 
 function FlatBalance() {
   const { flatId } = useParams();
+  const token = localStorage.getItem("authToken");
   const { user } = useContext(AuthContext);
 
   const [data, setData] = useState(null);
@@ -13,48 +16,40 @@ function FlatBalance() {
 
   const myEmail = useMemo(() => user?.email || null, [user]);
 
-  const formatAmount = (n) => {
+  const formatMoney = (n) => `${Number(n || 0).toFixed(2)} €`;
+
+  const formatSigned = (n) => {
     const num = Number(n || 0);
     const sign = num > 0 ? "+" : num < 0 ? "−" : "";
     return `${sign}${Math.abs(num).toFixed(2)} €`;
   };
 
-  // label profesional: Nombre (email pequeño)
-  const formatUserLabel = (email) => {
-    if (!email) return "Unknown user";
-    const name = nameByEmail[email];
-    return name ? `${name}` : email;
-  };
-
-  // Tooltip/secondary email
-  const formatUserSecondary = (email) => {
-    if (!email) return "";
-    const name = nameByEmail[email];
-    return name ? email : "";
-  };
-
-  // Construye un mapa email -> name desde flat.members
+  // Map email -> name from flat.members
   const nameByEmail = useMemo(() => {
     const map = {};
     if (!flat?.members) return map;
-
     for (const m of flat.members) {
-      if (m?.email) {
-        map[m.email] = m.name || m.email;
-      }
+      if (m?.email) map[m.email] = m.name || m.email;
     }
     return map;
   }, [flat]);
 
+  const label = (email) => (email ? nameByEmail[email] || email : "Unknown");
+  const secondaryEmail = (email) => (email && nameByEmail[email] ? email : "");
+
   useEffect(() => {
     const load = async () => {
       try {
-        // Balance
-        const balanceRes = await api.get(`/api/flats/${flatId}/balance`);
-        setData(balanceRes.data);
+        const [balanceRes, flatRes] = await Promise.all([
+          api.get(`/api/flats/${flatId}/balance`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          api.get(`/api/flats/${flatId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
 
-        // Flat detail (para sacar nombres)
-        const flatRes = await api.get(`/api/flats/${flatId}`);
+        setData(balanceRes.data);
         setFlat(flatRes.data);
       } catch (e) {
         alert(e?.response?.data?.message || "Error loading balance");
@@ -62,114 +57,180 @@ function FlatBalance() {
         setLoading(false);
       }
     };
-
     load();
-  }, [flatId]);
+  }, [flatId, token]);
 
-  if (loading) return <p>Loading...</p>;
-  if (!data) return <p>Balance not available</p>;
+  if (loading) {
+    return (
+      <ResponsiveLayout title="Balance" subtitle="Loading…" backTo={`/flats/${flatId}`}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="h-40 rounded-2xl bg-slate-200/60 animate-pulse" />
+          <div className="h-40 rounded-2xl bg-slate-200/60 animate-pulse" />
+          <div className="h-56 rounded-2xl bg-slate-200/60 animate-pulse md:col-span-2" />
+        </div>
+      </ResponsiveLayout>
+    );
+  }
+
+  if (!data) {
+    return (
+      <ResponsiveLayout title="Balance" backTo={`/flats/${flatId}`}>
+        <Card>
+          <CardBody>
+            <p className="text-sm text-slate-700">Balance not available.</p>
+          </CardBody>
+        </Card>
+      </ResponsiveLayout>
+    );
+  }
 
   const totals = Array.isArray(data.totals) ? data.totals : [];
   const settlements = Array.isArray(data.settlements) ? data.settlements : [];
 
-  // Formato backend actual: from/to son emails (string)
   const youOwe = myEmail ? settlements.filter((s) => s?.from === myEmail) : [];
   const youReceive = myEmail ? settlements.filter((s) => s?.to === myEmail) : [];
 
   return (
-    <div>
-      <Link to={`/flats/${flatId}`}>← Back to flat</Link>
+    <ResponsiveLayout
+      title="Balance"
+      subtitle={flat?.name ? `Flat · ${flat.name}` : "Flat"}
+      backTo={`/flats/${flatId}`}
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* You owe */}
+        <Card>
+          <CardHeader
+            title="You owe"
+            subtitle={youOwe.length ? "Payments you should make" : "You're all good"}
+            right={<Pill tone={youOwe.length ? "neg" : "neutral"}>{youOwe.length ? "Action" : "OK"}</Pill>}
+          />
+          <CardBody>
+            {!myEmail ? (
+              <p className="text-sm text-slate-600">Login again to see your personal summary.</p>
+            ) : youOwe.length === 0 ? (
+              <p className="text-sm text-slate-700">Nothing 🎉</p>
+            ) : (
+              <ul className="space-y-2">
+                {youOwe.map((s, i) => (
+                  <li
+                    key={i}
+                    className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-900" title={s?.to}>
+                        {label(s?.to)}
+                      </p>
+                      {secondaryEmail(s?.to) ? (
+                        <p className="truncate text-xs text-slate-500">{secondaryEmail(s?.to)}</p>
+                      ) : null}
+                    </div>
+                    <span className="text-sm font-semibold text-rose-700">{formatMoney(s?.amount)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardBody>
+        </Card>
 
-      <h2>Balance</h2>
+        {/* You receive */}
+        <Card>
+          <CardHeader
+            title="You receive"
+            subtitle={youReceive.length ? "Payments you should receive" : "No incoming payments"}
+            right={<Pill tone={youReceive.length ? "pos" : "neutral"}>{youReceive.length ? "Incoming" : "OK"}</Pill>}
+          />
+          <CardBody>
+            {!myEmail ? (
+              <p className="text-sm text-slate-600">Login again to see your personal summary.</p>
+            ) : youReceive.length === 0 ? (
+              <p className="text-sm text-slate-700">Nothing</p>
+            ) : (
+              <ul className="space-y-2">
+                {youReceive.map((s, i) => (
+                  <li
+                    key={i}
+                    className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-slate-900" title={s?.from}>
+                        {label(s?.from)}
+                      </p>
+                      {secondaryEmail(s?.from) ? (
+                        <p className="truncate text-xs text-slate-500">{secondaryEmail(s?.from)}</p>
+                      ) : null}
+                    </div>
+                    <span className="text-sm font-semibold text-emerald-700">{formatMoney(s?.amount)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardBody>
+        </Card>
 
-      <div style={{ display: "grid", gap: 12, marginBottom: 16 }}>
-        <div style={{ border: "1px solid #ddd", borderRadius: 10, padding: 12 }}>
-          <h3>You owe</h3>
-          {!myEmail ? (
-            <p>Loading user...</p>
-          ) : youOwe.length === 0 ? (
-            <p>Nothing 🎉</p>
-          ) : (
-            <ul>
-              {youOwe.map((s, i) => (
-                <li key={i} title={s?.to || ""}>
-                  {formatUserLabel(s?.to)}{" "}
-                  {formatUserSecondary(s?.to) && (
-                    <small style={{ opacity: 0.7 }}>
-                      ({formatUserSecondary(s?.to)})
-                    </small>
-                  )}{" "}
-                  — {formatAmount(s?.amount)}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        {/* Per person */}
+        <Card className="md:col-span-2">
+          <CardHeader title="Balance per person" subtitle="Positive receives · Negative owes" />
+          <CardBody>
+            {totals.length === 0 ? (
+              <p className="text-sm text-slate-700">No data yet</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {totals.map((t, idx) => {
+                  const net = Number(t?.net || 0);
+                  const tone = net > 0 ? "pos" : net < 0 ? "neg" : "neutral";
+                  return (
+                    <div
+                      key={t?.userId || idx}
+                      className="rounded-xl border border-slate-200 px-3 py-3"
+                      title={t?.email}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-900">
+                            {label(t?.email)}
+                          </p>
+                          {secondaryEmail(t?.email) ? (
+                            <p className="truncate text-xs text-slate-500">{secondaryEmail(t?.email)}</p>
+                          ) : null}
+                        </div>
+                        <Pill tone={tone}>{formatSigned(net)}</Pill>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardBody>
+        </Card>
 
-        <div style={{ border: "1px solid #ddd", borderRadius: 10, padding: 12 }}>
-          <h3>You receive</h3>
-          {!myEmail ? (
-            <p>Loading user...</p>
-          ) : youReceive.length === 0 ? (
-            <p>Nothing</p>
-          ) : (
-            <ul>
-              {youReceive.map((s, i) => (
-                <li key={i} title={s?.from || ""}>
-                  {formatUserLabel(s?.from)}{" "}
-                  {formatUserSecondary(s?.from) && (
-                    <small style={{ opacity: 0.7 }}>
-                      ({formatUserSecondary(s?.from)})
-                    </small>
-                  )}{" "}
-                  — {formatAmount(s?.amount)}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        {/* Settlements */}
+        <Card className="md:col-span-2">
+          <CardHeader title="Settlements" subtitle="Suggested payments to settle up" />
+          <CardBody>
+            {settlements.length === 0 ? (
+              <p className="text-sm text-slate-700">All settled ✅</p>
+            ) : (
+              <ul className="space-y-2">
+                {settlements.map((s, i) => (
+                  <li key={i} className="rounded-xl border border-slate-200 px-3 py-3">
+                    <p className="text-sm text-slate-900">
+                      <span className="font-semibold" title={s?.from}>
+                        {label(s?.from)}
+                      </span>{" "}
+                      <span className="text-slate-500">owes</span>{" "}
+                      <span className="font-semibold" title={s?.to}>
+                        {label(s?.to)}
+                      </span>
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-900">{formatMoney(s?.amount)}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardBody>
+        </Card>
       </div>
-
-      <h3>Balance per person</h3>
-      <div style={{ border: "1px solid #ddd", borderRadius: 10, padding: 12 }}>
-        {totals.length ? (
-          <ul>
-            {totals.map((t, idx) => (
-              <li key={t?.userId || idx} title={t?.email || ""}>
-                {formatUserLabel(t?.email)}{" "}
-                {formatUserSecondary(t?.email) && (
-                  <small style={{ opacity: 0.7 }}>
-                    ({formatUserSecondary(t?.email)})
-                  </small>
-                )}{" "}
-                — {formatAmount(t?.net)}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>No data yet</p>
-        )}
-        <small>Positive means receives, negative means owes.</small>
-      </div>
-
-      <h3 style={{ marginTop: 16 }}>Settlements</h3>
-      <div style={{ border: "1px solid #ddd", borderRadius: 10, padding: 12 }}>
-        {settlements.length === 0 ? (
-          <p>All settled ✅</p>
-        ) : (
-          <ul>
-            {settlements.map((s, i) => (
-              <li key={i}>
-                <span title={s?.from || ""}>{formatUserLabel(s?.from)}</span>{" "}
-                owes{" "}
-                <span title={s?.to || ""}>{formatUserLabel(s?.to)}</span>{" "}
-                <strong>{formatAmount(s?.amount)}</strong>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
+    </ResponsiveLayout>
   );
 }
 
