@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Button, Card, CardBody, CardHeader, Input, Pill } from "./ui/ui";
 
 function ExpenseForm({ members, onCreate }) {
   const [title, setTitle] = useState("");
@@ -9,7 +10,6 @@ function ExpenseForm({ members, onCreate }) {
   const [notes, setNotes] = useState("");
 
   const nameOrEmail = (u) => u?.name || u?.email || "User";
-
   const memberOptions = useMemo(() => members || [], [members]);
 
   const toggleSplit = (id) => {
@@ -43,71 +43,150 @@ function ExpenseForm({ members, onCreate }) {
     setNotes("");
   };
 
+  const allSelected = splitBetween.length === memberOptions.length && memberOptions.length > 0;
+
+  const toggleAll = () => {
+    if (allSelected) setSplitBetween([]);
+    else setSplitBetween(memberOptions.map((m) => m._id));
+  };
+
   return (
-    <form onSubmit={handleSubmit} style={{ marginBottom: 16 }}>
-      <h4>Add expense</h4>
-
-      <input
-        placeholder="Title (e.g. Supermarket)"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        required
+    <Card className="overflow-hidden">
+      <CardHeader
+        title="Add expense"
+        subtitle="Create a shared expense and split it fairly"
+        right={<Pill tone="neutral">New</Pill>}
       />
+      <CardBody>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                Title
+              </label>
+              <Input
+                placeholder="e.g. Supermarket"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+              />
+            </div>
 
-      <input
-        type="number"
-        step="0.01"
-        placeholder="Amount"
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-        required
-      />
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                Amount
+              </label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                required
+              />
+            </div>
 
-      <input
-        placeholder="Category (e.g. food, rent, bills)"
-        value={category}
-        onChange={(e) => setCategory(e.target.value)}
-      />
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                Category
+              </label>
+              <Input
+                placeholder="e.g. food, rent, bills"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              />
+            </div>
 
-      <div style={{ marginTop: 8 }}>
-        <label>Paid by: </label>
-        <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} required>
-          <option value="">Select</option>
-          {memberOptions.map((m) => (
-            <option key={m._id} value={m._id} title={m.email}>
-              {nameOrEmail(m)}
-            </option>
-          ))}
-        </select>
-      </div>
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                Paid by
+              </label>
+              <select
+                value={paidBy}
+                onChange={(e) => setPaidBy(e.target.value)}
+                required
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
+              >
+                <option value="">Select</option>
+                {memberOptions.map((m) => (
+                  <option key={m._id} value={m._id} title={m.email}>
+                    {nameOrEmail(m)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-      <div style={{ marginTop: 8 }}>
-        <div>Split between:</div>
-        {memberOptions.map((m) => (
-          <label key={m._id} style={{ display: "block" }} title={m.email}>
-            <input
-              type="checkbox"
-              checked={splitBetween.includes(m._id)}
-              onChange={() => toggleSplit(m._id)}
+          {/* Split between */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">Split between</p>
+                <p className="text-xs text-slate-500">
+                  Select who participates in this expense
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={toggleAll}
+                className="text-xs font-medium text-slate-700 hover:text-slate-900"
+              >
+                {allSelected ? "Clear all" : "Select all"}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {memberOptions.map((m) => {
+                const checked = splitBetween.includes(m._id);
+                return (
+                  <label
+                    key={m._id}
+                    title={m.email}
+                    className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm cursor-pointer ${
+                      checked
+                        ? "border-slate-300 bg-white"
+                        : "border-slate-200 bg-white/60"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleSplit(m._id)}
+                      className="h-4 w-4"
+                    />
+                    <span className="truncate font-medium text-slate-900">
+                      {nameOrEmail(m)}
+                    </span>
+                    <span className="truncate text-xs text-slate-500">
+                      ({m.email})
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              Notes (optional)
+            </label>
+            <textarea
+              placeholder="Add details if needed…"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300"
             />
-            {" "}
-            {nameOrEmail(m)}
-          </label>
-        ))}
-      </div>
+          </div>
 
-      <textarea
-        placeholder="Notes (optional)"
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        rows={2}
-        style={{ marginTop: 8, width: "100%" }}
-      />
-
-      <button type="submit" style={{ marginTop: 8 }}>
-        Create
-      </button>
-    </form>
+          <div className="flex items-center justify-end">
+            <Button type="submit">Create expense</Button>
+          </div>
+        </form>
+      </CardBody>
+    </Card>
   );
 }
 

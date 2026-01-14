@@ -4,6 +4,8 @@ import api from "../api/api";
 import { AuthContext } from "../context/auth.context";
 import ExpenseForm from "../components/ExpenseForm";
 import TaskForm from "../components/TaskForm";
+import ResponsiveLayout from "../components/ResponsiveLayout";
+import { Card, CardBody, CardHeader, Button, Input, Pill } from "../components/ui/ui";
 
 function FlatDetails() {
   const { flatId } = useParams();
@@ -22,27 +24,28 @@ function FlatDetails() {
 
   const nameOrEmail = (u) => u?.name || u?.email || "User";
 
-  const UserNameWithTooltip = ({ u, fallback = "-" }) => {
-    if (!u) return <span>{fallback}</span>;
-    return <span title={u.email || ""}>{nameOrEmail(u)}</span>;
+  const UserName = ({ u, fallback = "-" }) => {
+    if (!u) return <span className="text-slate-600">{fallback}</span>;
+    return (
+      <span className="font-medium text-slate-900" title={u.email || ""}>
+        {nameOrEmail(u)}
+      </span>
+    );
   };
 
   const statusLabel = (s) => {
     if (s === "pending") return "Pending";
-    if (s === "doing") return "In progress";
+    if (s === "doing") return "Doing";
     if (s === "done") return "Done";
-    return s;
+    return s || "-";
   };
 
-  const badgeStyle = (s) => ({
-    display: "inline-block",
-    padding: "2px 8px",
-    borderRadius: 999,
-    fontSize: 12,
-    border: "1px solid #ccc",
-    marginLeft: 8,
-    opacity: s === "done" ? 0.7 : 1,
-  });
+  const statusTone = (s) => {
+    if (s === "done") return "pos";
+    if (s === "doing") return "neutral";
+    if (s === "pending") return "neg";
+    return "neutral";
+  };
 
   // ───────── FETCH ─────────
   const getFlat = async () => {
@@ -72,7 +75,6 @@ function FlatDetails() {
       getExpenses().catch(() => alert("Error loading expenses")),
       getTasks().catch(() => alert("Error loading tasks")),
     ]).finally(() => setIsLoading(false));
-    
   }, [flatId]);
 
   // ───────── MEMBERS ─────────
@@ -210,206 +212,282 @@ function FlatDetails() {
   const toggleTaskDetails = (id) => setOpenTaskId((prev) => (prev === id ? null : id));
   const toggleExpenseDetails = (id) => setOpenExpenseId((prev) => (prev === id ? null : id));
 
-  if (isLoading) return <p>Loading...</p>;
-  if (!flat) return <p>Flat not found</p>;
+  if (isLoading) {
+    return (
+      <ResponsiveLayout title="Flat" subtitle="Loading…" backTo="/">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="h-40 rounded-2xl bg-slate-200/60 animate-pulse" />
+          <div className="h-40 rounded-2xl bg-slate-200/60 animate-pulse" />
+          <div className="h-72 rounded-2xl bg-slate-200/60 animate-pulse md:col-span-2" />
+        </div>
+      </ResponsiveLayout>
+    );
+  }
+
+  if (!flat) {
+    return (
+      <ResponsiveLayout title="Flat" backTo="/">
+        <Card>
+          <CardBody>
+            <p className="text-sm text-slate-700">Flat not found</p>
+          </CardBody>
+        </Card>
+      </ResponsiveLayout>
+    );
+  }
 
   const isOwner = String(flat.owner) === String(user._id);
 
   return (
-    <div>
-      <Link to="/">← Back</Link>
-
-      <h2>{flat.name}</h2>
-      <p>{flat.description}</p>
-
-      <div style={{ marginBottom: 12 }}>
-        <Link to={`/flats/${flatId}/balance`}>View Balance</Link>
-      </div>
-
-      {/* MEMBERS */}
-      <h3>Members</h3>
-      <ul>
-        {flat.members.map((member) => (
-          <li key={member._id} title={member.email || ""}>
-            {nameOrEmail(member)}
-            {member._id === flat.owner ? <span style={{ marginLeft: 8 }}>(Owner)</span> : null}
-            {isOwner && member._id !== flat.owner && (
-              <button onClick={() => handleRemoveMember(member._id)} style={{ marginLeft: 8 }}>
-                Remove
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-
-      {isOwner && (
-        <form onSubmit={handleAddMember} style={{ marginBottom: 20 }}>
-          <input
-            type="email"
-            placeholder="member@email.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <button type="submit" style={{ marginLeft: 8 }}>
-            Add member
-          </button>
-        </form>
-      )}
-
-      {/* EXPENSES (pro) */}
-      <h3>Expenses</h3>
-      <ExpenseForm members={flat.members} onCreate={createExpense} />
-
-      {expenses.length === 0 ? (
-        <p>No expenses yet</p>
-      ) : (
-        <div style={{ display: "grid", gap: 10 }}>
-          {expenses.map((e) => {
-            const creatorId = e.createdBy?._id || e.createdBy || null;
-            const isCreator = creatorId && String(creatorId) === String(user._id);
-            const isOpen = openExpenseId === e._id;
-
-            return (
-              <div
-                key={e._id}
-                style={{
-                  border: "1px solid #ddd",
-                  borderRadius: 10,
-                  padding: 12,
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <strong>{e.title}</strong>
-                      <span style={badgeStyle("pending")}>{e.amount} €</span>
-                    </div>
-
-                    <div style={{ marginTop: 6, fontSize: 14 }}>
-                      Paid by: <UserNameWithTooltip u={e.paidBy} />
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                    <button onClick={() => toggleExpenseDetails(e._id)}>
-                      {isOpen ? "Hide" : "Details"}
-                    </button>
-                    {isCreator && (
-                      <button onClick={() => deleteExpense(e._id)}>Delete</button>
+    <ResponsiveLayout
+      title={flat.name}
+      subtitle={flat.description || "Shared flat workspace"}
+      backTo="/"
+      right={
+        <Link to={`/flats/${flatId}/balance`}>
+          <Button>View Balance</Button>
+        </Link>
+      }
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* MEMBERS */}
+        <Card className="lg:col-span-1">
+          <CardHeader title="Members" subtitle={isOwner ? "Manage members" : "Flat members"} />
+          <CardBody>
+            <ul className="space-y-2">
+              {flat.members.map((m) => (
+                <li key={m._id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-900" title={m.email || ""}>
+                      {nameOrEmail(m)}
+                    </p>
+                    {m._id === flat.owner ? (
+                      <p className="text-xs text-slate-500">Owner</p>
+                    ) : (
+                      <p className="text-xs text-slate-500">{m.email}</p>
                     )}
                   </div>
-                </div>
 
-                {isOpen && (
-                  <div style={{ marginTop: 10, fontSize: 13, borderTop: "1px solid #eee", paddingTop: 10 }}>
-                    <div>Category: {e.category || "general"}</div>
-                    <div>
-                      Split between:{" "}
-                      {Array.isArray(e.splitBetween) && e.splitBetween.length > 0
-                        ? e.splitBetween.map((m) => (
-                            <span key={m._id} title={m.email} style={{ marginRight: 8 }}>
-                              {nameOrEmail(m)}
+                  {isOwner && m._id !== flat.owner ? (
+                    <Button variant="outline" className="px-3 py-2" onClick={() => handleRemoveMember(m._id)}>
+                      Remove
+                    </Button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+
+            {isOwner ? (
+              <form onSubmit={handleAddMember} className="mt-4 space-y-2">
+                <Input
+                  type="email"
+                  placeholder="member@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+                <Button type="submit" className="w-full">
+                  Add member
+                </Button>
+              </form>
+            ) : null}
+          </CardBody>
+        </Card>
+
+        {/* EXPENSES */}
+        <div className="lg:col-span-2 space-y-4">
+          <Card>
+            <CardHeader title="Expenses" subtitle="Create and review shared expenses" />
+            <CardBody>
+              <ExpenseForm members={flat.members} onCreate={createExpense} />
+            </CardBody>
+          </Card>
+
+          {expenses.length === 0 ? (
+            <Card>
+              <CardBody>
+                <p className="text-sm text-slate-700">No expenses yet</p>
+              </CardBody>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {expenses.map((e) => {
+                const creatorId = e.createdBy?._id || e.createdBy || null;
+                const isCreator = creatorId && String(creatorId) === String(user._id);
+                const isOpen = openExpenseId === e._id;
+
+                return (
+                  <Card key={e._id}>
+                    <CardBody>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="truncate text-sm font-semibold text-slate-900">{e.title}</p>
+                            <Pill tone="neutral">{Number(e.amount || 0).toFixed(2)} €</Pill>
+                          </div>
+                          <p className="mt-1 text-sm text-slate-700">
+                            Paid by: <UserName u={e.paidBy} />
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {e.category || "general"} ·{" "}
+                            {e.date ? new Date(e.date).toLocaleDateString() : "-"}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            className="px-3 py-2"
+                            onClick={() => toggleExpenseDetails(e._id)}
+                          >
+                            {isOpen ? "Hide" : "Details"}
+                          </Button>
+                          {isCreator ? (
+                            <Button
+                              variant="outline"
+                              className="px-3 py-2"
+                              onClick={() => deleteExpense(e._id)}
+                            >
+                              Delete
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {isOpen ? (
+                        <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+                          <div>
+                            <span className="font-medium text-slate-900">Split between:</span>{" "}
+                            {Array.isArray(e.splitBetween) && e.splitBetween.length
+                              ? e.splitBetween.map((m) => (
+                                  <span key={m._id} title={m.email} className="mr-2">
+                                    {nameOrEmail(m)}
+                                  </span>
+                                ))
+                              : "-"}
+                          </div>
+                          <div className="mt-2">
+                            <span className="font-medium text-slate-900">Created by:</span>{" "}
+                            <span title={e.createdBy?.email || ""}>
+                              {e.createdBy ? nameOrEmail(e.createdBy) : "Unknown"}
                             </span>
-                          ))
-                        : "-"}
-                    </div>
-                    <div>
-                      Created by:{" "}
-                      <span title={e.createdBy?.email || ""}>
-                        {e.createdBy ? nameOrEmail(e.createdBy) : "Unknown"}
-                      </span>
-                    </div>
-                    <div>
-                      Date: {e.date ? new Date(e.date).toLocaleDateString() : "-"}
-                    </div>
-                    {e.notes ? <div style={{ marginTop: 6 }}>Notes: {e.notes}</div> : null}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                          </div>
+                          {e.notes ? <div className="mt-2">Notes: {e.notes}</div> : null}
+                        </div>
+                      ) : null}
+                    </CardBody>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          {/* TASKS */}
+          <Card>
+            <CardHeader title="Tasks" subtitle="Assign tasks and track progress" />
+            <CardBody>
+              <TaskForm members={flat.members} onCreate={createTask} />
+            </CardBody>
+          </Card>
+
+          {sortedTasks.length === 0 ? (
+            <Card>
+              <CardBody>
+                <p className="text-sm text-slate-700">No tasks yet</p>
+              </CardBody>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {sortedTasks.map((t) => {
+                const assignedId = t.assignedTo?._id || t.assignedTo || null;
+                const creatorId = t.createdBy?._id || t.createdBy || null;
+
+                const isAssignedToMe = assignedId && String(assignedId) === String(user._id);
+                const isCreator = creatorId && String(creatorId) === String(user._id);
+                const isOpen = openTaskId === t._id;
+
+                return (
+                  <Card key={t._id}>
+                    <CardBody>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="truncate text-sm font-semibold text-slate-900">{t.title}</p>
+                            <Pill tone={statusTone(t.status)}>{statusLabel(t.status)}</Pill>
+                          </div>
+                          <p className="mt-1 text-sm text-slate-700">
+                            Assigned to: <UserName u={t.assignedTo} fallback="Unassigned" />
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap justify-end">
+                          {!assignedId ? (
+                            <Button
+                              variant="outline"
+                              className="px-3 py-2"
+                              onClick={() => assignTaskToMe(t._id)}
+                            >
+                              Assign to me
+                            </Button>
+                          ) : null}
+
+                          {isAssignedToMe && t.status === "pending" ? (
+                            <Button className="px-3 py-2" onClick={() => startTask(t._id)}>
+                              Start
+                            </Button>
+                          ) : null}
+
+                          {isAssignedToMe && t.status === "doing" ? (
+                            <Button className="px-3 py-2" onClick={() => markTaskDone(t._id)}>
+                              Done
+                            </Button>
+                          ) : null}
+
+                          <Button
+                            variant="ghost"
+                            className="px-3 py-2"
+                            onClick={() => toggleTaskDetails(t._id)}
+                          >
+                            {isOpen ? "Hide" : "Details"}
+                          </Button>
+
+                          {isCreator ? (
+                            <Button
+                              variant="outline"
+                              className="px-3 py-2"
+                              onClick={() => deleteTask(t._id)}
+                            >
+                              Delete
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {isOpen ? (
+                        <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+                          <div>
+                            <span className="font-medium text-slate-900">Created by:</span>{" "}
+                            <span title={t.createdBy?.email || ""}>
+                              {t.createdBy ? nameOrEmail(t.createdBy) : "Unknown"}
+                            </span>
+                          </div>
+                          <div className="mt-2">
+                            <span className="font-medium text-slate-900">Created at:</span>{" "}
+                            {t.createdAt ? new Date(t.createdAt).toLocaleString() : "-"}
+                          </div>
+                          {t.description ? <div className="mt-2">Notes: {t.description}</div> : null}
+                        </div>
+                      ) : null}
+                    </CardBody>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
-      )}
-
-      {/* TASKS (pro) */}
-      <h3 style={{ marginTop: 24 }}>Tasks</h3>
-      <TaskForm members={flat.members} onCreate={createTask} />
-
-      {sortedTasks.length === 0 ? (
-        <p>No tasks yet</p>
-      ) : (
-        <div style={{ display: "grid", gap: 10 }}>
-          {sortedTasks.map((t) => {
-            const assignedId = t.assignedTo?._id || t.assignedTo || null;
-            const creatorId = t.createdBy?._id || t.createdBy || null;
-
-            const isAssignedToMe = assignedId && String(assignedId) === String(user._id);
-            const isCreator = creatorId && String(creatorId) === String(user._id);
-            const isOpen = openTaskId === t._id;
-
-            return (
-              <div
-                key={t._id}
-                style={{
-                  border: "1px solid #ddd",
-                  borderRadius: 10,
-                  padding: 12,
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <strong>{t.title}</strong>
-                      <span style={badgeStyle(t.status)}>{statusLabel(t.status)}</span>
-                    </div>
-
-                    <div style={{ marginTop: 6, fontSize: 14 }}>
-                      Assigned to: <UserNameWithTooltip u={t.assignedTo} fallback="Unassigned" />
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                    {!assignedId && (
-                      <button onClick={() => assignTaskToMe(t._id)}>Assign to me</button>
-                    )}
-                    {isAssignedToMe && t.status === "pending" && (
-                      <button onClick={() => startTask(t._id)}>Start</button>
-                    )}
-                    {isAssignedToMe && t.status === "doing" && (
-                      <button onClick={() => markTaskDone(t._id)}>Done</button>
-                    )}
-
-                    <button onClick={() => toggleTaskDetails(t._id)}>
-                      {isOpen ? "Hide" : "Details"}
-                    </button>
-
-                    {isCreator && <button onClick={() => deleteTask(t._id)}>Delete</button>}
-                  </div>
-                </div>
-
-                {isOpen && (
-                  <div style={{ marginTop: 10, fontSize: 13, borderTop: "1px solid #eee", paddingTop: 10 }}>
-                    <div>
-                      Created by:{" "}
-                      <span title={t.createdBy?.email || ""}>
-                        {t.createdBy ? nameOrEmail(t.createdBy) : "Unknown"}
-                      </span>
-                    </div>
-                    <div>
-                      Created at: {t.createdAt ? new Date(t.createdAt).toLocaleString() : "-"}
-                    </div>
-                    {t.description ? <div style={{ marginTop: 6 }}>Notes: {t.description}</div> : null}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+      </div>
+    </ResponsiveLayout>
   );
 }
 
 export default FlatDetails;
-
