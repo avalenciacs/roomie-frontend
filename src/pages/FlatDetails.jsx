@@ -15,14 +15,14 @@ function FlatDetails() {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  // para desplegar detalles por task
   const [openTaskId, setOpenTaskId] = useState(null);
+  const [openExpenseId, setOpenExpenseId] = useState(null);
 
   const token = localStorage.getItem("authToken");
 
   const nameOrEmail = (u) => u?.name || u?.email || "User";
 
-  const UserNameWithTooltip = ({ u, fallback = "Unassigned" }) => {
+  const UserNameWithTooltip = ({ u, fallback = "-" }) => {
     if (!u) return <span>{fallback}</span>;
     return <span title={u.email || ""}>{nameOrEmail(u)}</span>;
   };
@@ -34,19 +34,15 @@ function FlatDetails() {
     return s;
   };
 
-  const statusBadgeStyle = (s) => {
-    // sin colores explícitos “raros”, solo un estilo básico
-    const base = {
-      display: "inline-block",
-      padding: "2px 8px",
-      borderRadius: 999,
-      fontSize: 12,
-      border: "1px solid #ccc",
-      marginLeft: 8,
-    };
-    if (s === "done") return { ...base, opacity: 0.7 };
-    return base;
-  };
+  const badgeStyle = (s) => ({
+    display: "inline-block",
+    padding: "2px 8px",
+    borderRadius: 999,
+    fontSize: 12,
+    border: "1px solid #ccc",
+    marginLeft: 8,
+    opacity: s === "done" ? 0.7 : 1,
+  });
 
   // ───────── FETCH ─────────
   const getFlat = async () => {
@@ -76,7 +72,7 @@ function FlatDetails() {
       getExpenses().catch(() => alert("Error loading expenses")),
       getTasks().catch(() => alert("Error loading tasks")),
     ]).finally(() => setIsLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [flatId]);
 
   // ───────── MEMBERS ─────────
@@ -118,10 +114,24 @@ function FlatDetails() {
     }
   };
 
+  const deleteExpense = async (expenseId) => {
+    const ok = window.confirm("Delete this expense? This cannot be undone.");
+    if (!ok) return;
+
+    try {
+      await api.delete(`/api/expenses/${expenseId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setOpenExpenseId((prev) => (prev === expenseId ? null : prev));
+      getExpenses();
+    } catch (error) {
+      alert(error?.response?.data?.message || "Error deleting expense");
+    }
+  };
+
   // ───────── TASKS ─────────
   const createTask = async (taskData) => {
     try {
-      // siempre pending al crear (asignada o no)
       await api.post(
         `/api/flats/${flatId}/tasks`,
         { ...taskData, status: "pending" },
@@ -180,7 +190,6 @@ function FlatDetails() {
       await api.delete(`/api/tasks/${taskId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      // si estaba abierto el details, cerrarlo
       setOpenTaskId((prev) => (prev === taskId ? null : prev));
       getTasks();
     } catch (error) {
@@ -188,22 +197,18 @@ function FlatDetails() {
     }
   };
 
-  // ───────── UI helpers ─────────
-  const toggleDetails = (taskId) => {
-    setOpenTaskId((prev) => (prev === taskId ? null : taskId));
-  };
-
   const sortedTasks = useMemo(() => {
-    // orden pro: primero pending, luego doing, luego done
     const rank = { pending: 0, doing: 1, done: 2 };
     return [...tasks].sort((a, b) => {
       const ra = rank[a.status] ?? 99;
       const rb = rank[b.status] ?? 99;
       if (ra !== rb) return ra - rb;
-      // más recientes arriba
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
   }, [tasks]);
+
+  const toggleTaskDetails = (id) => setOpenTaskId((prev) => (prev === id ? null : id));
+  const toggleExpenseDetails = (id) => setOpenExpenseId((prev) => (prev === id ? null : id));
 
   if (isLoading) return <p>Loading...</p>;
   if (!flat) return <p>Flat not found</p>;
@@ -227,6 +232,7 @@ function FlatDetails() {
         {flat.members.map((member) => (
           <li key={member._id} title={member.email || ""}>
             {nameOrEmail(member)}
+            {member._id === flat.owner ? <span style={{ marginLeft: 8 }}>(Owner)</span> : null}
             {isOwner && member._id !== flat.owner && (
               <button onClick={() => handleRemoveMember(member._id)} style={{ marginLeft: 8 }}>
                 Remove
@@ -251,24 +257,82 @@ function FlatDetails() {
         </form>
       )}
 
-      {/* EXPENSES */}
+      {/* EXPENSES (pro) */}
       <h3>Expenses</h3>
       <ExpenseForm members={flat.members} onCreate={createExpense} />
 
       {expenses.length === 0 ? (
         <p>No expenses yet</p>
       ) : (
-        <ul>
-          {expenses.map((e) => (
-            <li key={e._id} title={e.paidBy?.email || ""}>
-              <strong>{e.title}</strong> — {e.amount}€ ({e.category}) — paid by{" "}
-              {e.paidBy ? nameOrEmail(e.paidBy) : "Unknown"}
-            </li>
-          ))}
-        </ul>
+        <div style={{ display: "grid", gap: 10 }}>
+          {expenses.map((e) => {
+            const creatorId = e.createdBy?._id || e.createdBy || null;
+            const isCreator = creatorId && String(creatorId) === String(user._id);
+            const isOpen = openExpenseId === e._id;
+
+            return (
+              <div
+                key={e._id}
+                style={{
+                  border: "1px solid #ddd",
+                  borderRadius: 10,
+                  padding: 12,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <strong>{e.title}</strong>
+                      <span style={badgeStyle("pending")}>{e.amount} €</span>
+                    </div>
+
+                    <div style={{ marginTop: 6, fontSize: 14 }}>
+                      Paid by: <UserNameWithTooltip u={e.paidBy} />
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    <button onClick={() => toggleExpenseDetails(e._id)}>
+                      {isOpen ? "Hide" : "Details"}
+                    </button>
+                    {isCreator && (
+                      <button onClick={() => deleteExpense(e._id)}>Delete</button>
+                    )}
+                  </div>
+                </div>
+
+                {isOpen && (
+                  <div style={{ marginTop: 10, fontSize: 13, borderTop: "1px solid #eee", paddingTop: 10 }}>
+                    <div>Category: {e.category || "general"}</div>
+                    <div>
+                      Split between:{" "}
+                      {Array.isArray(e.splitBetween) && e.splitBetween.length > 0
+                        ? e.splitBetween.map((m) => (
+                            <span key={m._id} title={m.email} style={{ marginRight: 8 }}>
+                              {nameOrEmail(m)}
+                            </span>
+                          ))
+                        : "-"}
+                    </div>
+                    <div>
+                      Created by:{" "}
+                      <span title={e.createdBy?.email || ""}>
+                        {e.createdBy ? nameOrEmail(e.createdBy) : "Unknown"}
+                      </span>
+                    </div>
+                    <div>
+                      Date: {e.date ? new Date(e.date).toLocaleDateString() : "-"}
+                    </div>
+                    {e.notes ? <div style={{ marginTop: 6 }}>Notes: {e.notes}</div> : null}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
 
-      {/* TASKS */}
+      {/* TASKS (pro) */}
       <h3 style={{ marginTop: 24 }}>Tasks</h3>
       <TaskForm members={flat.members} onCreate={createTask} />
 
@@ -280,11 +344,8 @@ function FlatDetails() {
             const assignedId = t.assignedTo?._id || t.assignedTo || null;
             const creatorId = t.createdBy?._id || t.createdBy || null;
 
-            const isAssignedToMe =
-              assignedId && String(assignedId) === String(user._id);
-            const isCreator =
-              creatorId && String(creatorId) === String(user._id);
-
+            const isAssignedToMe = assignedId && String(assignedId) === String(user._id);
+            const isCreator = creatorId && String(creatorId) === String(user._id);
             const isOpen = openTaskId === t._id;
 
             return (
@@ -300,9 +361,7 @@ function FlatDetails() {
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <strong>{t.title}</strong>
-                      <span style={statusBadgeStyle(t.status)}>
-                        {statusLabel(t.status)}
-                      </span>
+                      <span style={badgeStyle(t.status)}>{statusLabel(t.status)}</span>
                     </div>
 
                     <div style={{ marginTop: 6, fontSize: 14 }}>
@@ -311,28 +370,21 @@ function FlatDetails() {
                   </div>
 
                   <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                    {/* Acciones según flujo */}
                     {!assignedId && (
-                      <button onClick={() => assignTaskToMe(t._id)}>
-                        Assign to me
-                      </button>
+                      <button onClick={() => assignTaskToMe(t._id)}>Assign to me</button>
                     )}
-
                     {isAssignedToMe && t.status === "pending" && (
                       <button onClick={() => startTask(t._id)}>Start</button>
                     )}
-
                     {isAssignedToMe && t.status === "doing" && (
                       <button onClick={() => markTaskDone(t._id)}>Done</button>
                     )}
 
-                    <button onClick={() => toggleDetails(t._id)}>
+                    <button onClick={() => toggleTaskDetails(t._id)}>
                       {isOpen ? "Hide" : "Details"}
                     </button>
 
-                    {isCreator && (
-                      <button onClick={() => deleteTask(t._id)}>Delete</button>
-                    )}
+                    {isCreator && <button onClick={() => deleteTask(t._id)}>Delete</button>}
                   </div>
                 </div>
 
@@ -344,12 +396,9 @@ function FlatDetails() {
                         {t.createdBy ? nameOrEmail(t.createdBy) : "Unknown"}
                       </span>
                     </div>
-
                     <div>
-                      Created at:{" "}
-                      {t.createdAt ? new Date(t.createdAt).toLocaleString() : "-"}
+                      Created at: {t.createdAt ? new Date(t.createdAt).toLocaleString() : "-"}
                     </div>
-
                     {t.description ? <div style={{ marginTop: 6 }}>Notes: {t.description}</div> : null}
                   </div>
                 )}

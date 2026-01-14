@@ -1,11 +1,16 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 function ExpenseForm({ members, onCreate }) {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState("general");
   const [paidBy, setPaidBy] = useState("");
   const [splitBetween, setSplitBetween] = useState([]);
-  const [category, setCategory] = useState("other");
+  const [notes, setNotes] = useState("");
+
+  const nameOrEmail = (u) => u?.name || u?.email || "User";
+
+  const memberOptions = useMemo(() => members || [], [members]);
 
   const toggleSplit = (id) => {
     setSplitBetween((prev) =>
@@ -15,26 +20,35 @@ function ExpenseForm({ members, onCreate }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    const amt = Number(amount);
+    if (Number.isNaN(amt) || amt < 0) return alert("Amount must be a number >= 0");
+    if (!paidBy) return alert("Choose who paid");
+    if (splitBetween.length === 0) return alert("Choose at least 1 participant");
+
     onCreate({
       title,
-      amount: Number(amount),
+      amount: amt,
+      category,
       paidBy,
       splitBetween,
-      category,
+      notes,
     });
+
     setTitle("");
     setAmount("");
+    setCategory("general");
     setPaidBy("");
     setSplitBetween([]);
-    setCategory("other");
+    setNotes("");
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} style={{ marginBottom: 16 }}>
       <h4>Add expense</h4>
 
       <input
-        placeholder="Title"
+        placeholder="Title (e.g. Supermarket)"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         required
@@ -42,43 +56,57 @@ function ExpenseForm({ members, onCreate }) {
 
       <input
         type="number"
+        step="0.01"
         placeholder="Amount"
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
         required
       />
 
-      <label>Paid by</label>
-      <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} required>
-        <option value="">Select</option>
-        {members.map((m) => (
-          <option key={m._id} value={m._id}>
-            {m.email}
-          </option>
+      <input
+        placeholder="Category (e.g. food, rent, bills)"
+        value={category}
+        onChange={(e) => setCategory(e.target.value)}
+      />
+
+      <div style={{ marginTop: 8 }}>
+        <label>Paid by: </label>
+        <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} required>
+          <option value="">Select</option>
+          {memberOptions.map((m) => (
+            <option key={m._id} value={m._id} title={m.email}>
+              {nameOrEmail(m)}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div style={{ marginTop: 8 }}>
+        <div>Split between:</div>
+        {memberOptions.map((m) => (
+          <label key={m._id} style={{ display: "block" }} title={m.email}>
+            <input
+              type="checkbox"
+              checked={splitBetween.includes(m._id)}
+              onChange={() => toggleSplit(m._id)}
+            />
+            {" "}
+            {nameOrEmail(m)}
+          </label>
         ))}
-      </select>
+      </div>
 
-      <label>Split between</label>
-      {members.map((m) => (
-        <div key={m._id}>
-          <input
-            type="checkbox"
-            checked={splitBetween.includes(m._id)}
-            onChange={() => toggleSplit(m._id)}
-          />
-          <span>{m.email}</span>
-        </div>
-      ))}
+      <textarea
+        placeholder="Notes (optional)"
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        rows={2}
+        style={{ marginTop: 8, width: "100%" }}
+      />
 
-      <label>Category</label>
-      <select value={category} onChange={(e) => setCategory(e.target.value)}>
-        <option value="groceries">groceries</option>
-        <option value="rent">rent</option>
-        <option value="bills">bills</option>
-        <option value="other">other</option>
-      </select>
-
-      <button type="submit">Create</button>
+      <button type="submit" style={{ marginTop: 8 }}>
+        Create
+      </button>
     </form>
   );
 }
