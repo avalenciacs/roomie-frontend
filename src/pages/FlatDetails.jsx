@@ -1,4 +1,4 @@
-// FlatDetails.jsx
+
 import { useEffect, useMemo, useState, useContext, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../api/api";
@@ -16,10 +16,8 @@ function FlatDetails() {
   const [expenses, setExpenses] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [email, setEmail] = useState("");
-
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
-
   const [openTaskId, setOpenTaskId] = useState(null);
   const [openExpenseId, setOpenExpenseId] = useState(null);
 
@@ -54,14 +52,11 @@ function FlatDetails() {
 
   const fmtDate = (d) => {
     if (!d) return "-";
-    try {
-      return new Date(d).toLocaleDateString();
-    } catch {
-      return "-";
-    }
+    const date = new Date(d);
+    return Number.isNaN(date.getTime()) ? "-" : date.toLocaleDateString();
   };
 
-  // ───────── FETCH (memoized) ─────────
+  // ───────── FETCH ─────────
   const getFlat = useCallback(async () => {
     const res = await api.get(`/api/flats/${flatId}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -243,7 +238,9 @@ function FlatDetails() {
     });
   }, [tasks]);
 
-  const toggleTaskDetails = (id) => setOpenTaskId((prev) => (prev === id ? null : id));
+  const toggleTaskDetails = (id) =>
+    setOpenTaskId((prev) => (prev === id ? null : id));
+
   const toggleExpenseDetails = (id) =>
     setOpenExpenseId((prev) => (prev === id ? null : id));
 
@@ -265,10 +262,8 @@ function FlatDetails() {
       <ResponsiveLayout title="Flat" backTo="/">
         <Card>
           <CardBody>
-            <p className="text-sm text-slate-900 font-semibold">Flat not found</p>
-            {pageError ? (
-              <p className="mt-1 text-sm text-slate-600">{pageError}</p>
-            ) : null}
+            <p className="text-sm font-semibold text-slate-900">Flat not found</p>
+            {pageError ? <p className="mt-1 text-sm text-slate-600">{pageError}</p> : null}
             <div className="mt-4">
               <Link to="/">
                 <Button>Back</Button>
@@ -310,10 +305,7 @@ function FlatDetails() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* MEMBERS */}
         <Card className="lg:col-span-1">
-          <CardHeader
-            title="Members"
-            subtitle={isOwner ? "Manage members" : "Flat members"}
-          />
+          <CardHeader title="Members" subtitle={isOwner ? "Manage members" : "Flat members"} />
           <CardBody>
             <ul className="space-y-2">
               {flat.members.map((m) => (
@@ -323,22 +315,12 @@ function FlatDetails() {
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <p
-                        className="truncate text-sm font-semibold text-slate-900"
-                        title={m.email || ""}
-                      >
+                      <p className="truncate text-sm font-semibold text-slate-900" title={m.email || ""}>
                         {nameOrEmail(m)}
                       </p>
-                      {m._id === flat.owner ? (
-                        <Pill tone="neutral">Owner</Pill>
-                      ) : null}
+                      {m._id === flat.owner ? <Pill tone="neutral">Owner</Pill> : null}
                     </div>
-
-                    {m._id !== flat.owner ? (
-                      <p className="truncate text-xs text-slate-500">{m.email}</p>
-                    ) : (
-                      <p className="truncate text-xs text-slate-500">{m.email}</p>
-                    )}
+                    <p className="truncate text-xs text-slate-500">{m.email}</p>
                   </div>
 
                   {isOwner && m._id !== flat.owner ? (
@@ -367,7 +349,7 @@ function FlatDetails() {
                   Add member
                 </Button>
                 <p className="text-xs text-slate-500">
-                  Tip: add members by email (they must have an account).
+                  Tip: members must have an account first.
                 </p>
               </form>
             ) : null}
@@ -389,9 +371,7 @@ function FlatDetails() {
             <Card>
               <CardBody>
                 <p className="text-xs text-slate-500">Expenses</p>
-                <p className="mt-1 text-lg font-semibold text-slate-900">
-                  {expenses.length}
-                </p>
+                <p className="mt-1 text-lg font-semibold text-slate-900">{expenses.length}</p>
               </CardBody>
             </Card>
             <Card>
@@ -404,7 +384,7 @@ function FlatDetails() {
             </Card>
           </div>
 
-          {/* EXPENSES */}
+          {/* EXPENSES FORM */}
           <Card>
             <CardHeader title="Expenses" subtitle="Create and review shared expenses" />
             <CardBody>
@@ -412,6 +392,7 @@ function FlatDetails() {
             </CardBody>
           </Card>
 
+          {/* EXPENSES LIST */}
           {expenses.length === 0 ? (
             <Card>
               <CardBody>
@@ -431,9 +412,7 @@ function FlatDetails() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="truncate text-sm font-semibold text-slate-900">
-                              {e.title}
-                            </p>
+                            <p className="truncate text-sm font-semibold text-slate-900">{e.title}</p>
                             <Pill tone="neutral">{formatMoney(e.amount)}</Pill>
                           </div>
 
@@ -442,7 +421,7 @@ function FlatDetails() {
                           </p>
 
                           <p className="text-xs text-slate-500">
-                            {(e.category || "general").toLowerCase()} · {fmtDate(e.date)}
+                            {(e.category || "general")} · {fmtDate(e.date)}
                           </p>
                         </div>
 
@@ -505,7 +484,7 @@ function FlatDetails() {
             </div>
           )}
 
-          {/* TASKS */}
+          {/* TASKS FORM */}
           <Card>
             <CardHeader title="Tasks" subtitle="Assign tasks and track progress" />
             <CardBody>
@@ -513,6 +492,7 @@ function FlatDetails() {
             </CardBody>
           </Card>
 
+          {/* TASKS LIST */}
           {sortedTasks.length === 0 ? (
             <Card>
               <CardBody>
@@ -535,9 +515,7 @@ function FlatDetails() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="truncate text-sm font-semibold text-slate-900">
-                              {t.title}
-                            </p>
+                            <p className="truncate text-sm font-semibold text-slate-900">{t.title}</p>
                             <Pill tone={statusTone(t.status)}>{statusLabel(t.status)}</Pill>
                           </div>
 

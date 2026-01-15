@@ -1,26 +1,26 @@
-import { useMemo, useState } from "react";
 
-function ExpenseForm({ members, onCreate }) {
+import { useState } from "react";
+import { Button, Input } from "./ui/ui";
+
+const CATEGORY_OPTIONS = [
+  { value: "general", label: "General" },
+  { value: "rent", label: "Rent" },
+  { value: "food", label: "Food" },
+  { value: "bills", label: "Bills" },
+  { value: "transport", label: "Transport" },
+  { value: "shopping", label: "Shopping" },
+  { value: "entertainment", label: "Entertainment" },
+  { value: "other", label: "Other" },
+];
+
+export default function ExpenseForm({ members = [], onCreate }) {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("general");
-  const [paidBy, setPaidBy] = useState("");
+  const [paidBy, setPaidBy] = useState(members?.[0]?._id || "");
   const [splitBetween, setSplitBetween] = useState([]);
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [category, setCategory] = useState("general");
   const [notes, setNotes] = useState("");
-
-  const nameOrEmail = (u) => u?.name || u?.email || "User";
-  const memberOptions = useMemo(() => members || [], [members]);
-
-  const CATEGORIES = [
-    { value: "general", label: "General" },
-    { value: "rent", label: "Rent" },
-    { value: "food", label: "Food" },
-    { value: "bills", label: "Bills" },
-    { value: "transport", label: "Transport" },
-    { value: "shopping", label: "Shopping" },
-    { value: "entertainment", label: "Entertainment" },
-    { value: "other", label: "Other" },
-  ];
 
   const toggleSplit = (id) => {
     setSplitBetween((prev) =>
@@ -31,65 +31,63 @@ function ExpenseForm({ members, onCreate }) {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    const amt = Number(amount);
-    if (Number.isNaN(amt) || amt < 0) return alert("Amount must be a number >= 0");
-    if (!paidBy) return alert("Choose who paid");
-    if (splitBetween.length === 0) return alert("Choose at least 1 participant");
-
-    onCreate({
-      title,
-      amount: amt,
-      category,
+    const payload = {
+      title: title.trim(),
+      amount: Number(amount),
       paidBy,
-      splitBetween,
-      notes,
-    });
+      splitBetween: splitBetween.length ? splitBetween : members.map((m) => m._id),
+      date,
+      category,
+      notes: notes.trim(),
+    };
+
+    onCreate(payload);
 
     setTitle("");
     setAmount("");
     setCategory("general");
-    setPaidBy("");
-    setSplitBetween([]);
     setNotes("");
+    setSplitBetween([]);
+    setDate(new Date().toISOString().slice(0, 10));
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      <h4 className="text-sm font-semibold text-slate-900">Add expense</h4>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <label className="text-xs font-medium text-slate-600">Title</label>
-          <input
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
-            placeholder="Supermarket"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-          />
+          <label className="text-sm font-medium text-slate-700">Title</label>
+          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Groceries" required />
         </div>
 
         <div>
-          <label className="text-xs font-medium text-slate-600">Amount</label>
-          <input
-            type="number"
-            step="0.01"
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
-            placeholder="0.00"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            required
-          />
+          <label className="text-sm font-medium text-slate-700">Amount</label>
+          <Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="25.50" required />
         </div>
 
         <div>
-          <label className="text-xs font-medium text-slate-600">Category</label>
+          <label className="text-sm font-medium text-slate-700">Paid by</label>
           <select
-            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+            value={paidBy}
+            onChange={(e) => setPaidBy(e.target.value)}
+            required
+          >
+            {members.map((m) => (
+              <option key={m._id} value={m._id}>
+                {m.name || m.email}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-slate-700">Category</label>
+          <select
+            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
-            {CATEGORIES.map((c) => (
+            {CATEGORY_OPTIONS.map((c) => (
               <option key={c.value} value={c.value}>
                 {c.label}
               </option>
@@ -98,58 +96,46 @@ function ExpenseForm({ members, onCreate }) {
         </div>
 
         <div>
-          <label className="text-xs font-medium text-slate-600">Paid by</label>
-          <select
-            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
-            value={paidBy}
-            onChange={(e) => setPaidBy(e.target.value)}
-            required
-          >
-            <option value="">Select</option>
-            {memberOptions.map((m) => (
-              <option key={m._id} value={m._id} title={m.email}>
-                {nameOrEmail(m)}
-              </option>
-            ))}
-          </select>
+          <label className="text-sm font-medium text-slate-700">Date</label>
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </div>
-      </div>
 
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-        <p className="text-xs font-medium text-slate-600">Split between</p>
-        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {memberOptions.map((m) => (
-            <label key={m._id} className="flex items-center gap-2 text-sm" title={m.email}>
-              <input
-                type="checkbox"
-                checked={splitBetween.includes(m._id)}
-                onChange={() => toggleSplit(m._id)}
-              />
-              <span className="text-slate-900">{nameOrEmail(m)}</span>
-            </label>
-          ))}
+        <div>
+          <label className="text-sm font-medium text-slate-700">Notes (optional)</label>
+          <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything relevant…" />
         </div>
       </div>
 
       <div>
-        <label className="text-xs font-medium text-slate-600">Notes (optional)</label>
-        <textarea
-          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
-          placeholder="Optional notes..."
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={2}
-        />
+        <p className="text-sm font-medium text-slate-700">Split between</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {members.map((m) => {
+            const checked = splitBetween.includes(m._id);
+            return (
+              <button
+                type="button"
+                key={m._id}
+                onClick={() => toggleSplit(m._id)}
+                className={[
+                  "rounded-full px-3 py-1 text-xs ring-1",
+                  checked
+                    ? "bg-emerald-600 text-white ring-emerald-600"
+                    : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50",
+                ].join(" ")}
+              >
+                {m.name || m.email}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-1 text-xs text-slate-500">
+          If you don’t select anyone, it will split between all members.
+        </p>
       </div>
 
-      <button
-        type="submit"
-        className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
-      >
-        Create expense
-      </button>
+      <Button type="submit" className="w-full sm:w-auto">
+        Add expense
+      </Button>
     </form>
   );
 }
-
-export default ExpenseForm;
