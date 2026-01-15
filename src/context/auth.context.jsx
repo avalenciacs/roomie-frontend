@@ -22,7 +22,7 @@ function AuthProvider({ children }) {
     }
 
     try {
-      const response = await api.get("/auth/verify", {
+      const response = await api.get("/api/auth/verify", {
         headers: { Authorization: `Bearer ${token}` },
       });
 

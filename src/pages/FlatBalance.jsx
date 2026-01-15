@@ -1,3 +1,4 @@
+// FlatBalance.jsx
 import { useEffect, useMemo, useState, useContext } from "react";
 import { useParams } from "react-router-dom";
 import api from "../api/api";
@@ -24,7 +25,6 @@ function FlatBalance() {
     return `${sign}${Math.abs(num).toFixed(2)} €`;
   };
 
-  // Map email -> name from flat.members
   const nameByEmail = useMemo(() => {
     const map = {};
     if (!flat?.members) return map;
@@ -63,10 +63,10 @@ function FlatBalance() {
   if (loading) {
     return (
       <ResponsiveLayout title="Balance" subtitle="Loading…" backTo={`/flats/${flatId}`}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="h-40 rounded-2xl bg-slate-200/60 animate-pulse" />
-          <div className="h-40 rounded-2xl bg-slate-200/60 animate-pulse" />
-          <div className="h-56 rounded-2xl bg-slate-200/60 animate-pulse md:col-span-2" />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="h-40 animate-pulse rounded-2xl bg-slate-200/60" />
+          <div className="h-40 animate-pulse rounded-2xl bg-slate-200/60" />
+          <div className="h-56 animate-pulse rounded-2xl bg-slate-200/60 md:col-span-2" />
         </div>
       </ResponsiveLayout>
     );
@@ -90,19 +90,27 @@ function FlatBalance() {
   const youOwe = myEmail ? settlements.filter((s) => s?.from === myEmail) : [];
   const youReceive = myEmail ? settlements.filter((s) => s?.to === myEmail) : [];
 
+  const sum = (arr) => arr.reduce((acc, x) => acc + Number(x?.amount || 0), 0);
+  const oweTotal = sum(youOwe);
+  const receiveTotal = sum(youReceive);
+
   return (
     <ResponsiveLayout
       title="Balance"
       subtitle={flat?.name ? `Flat · ${flat.name}` : "Flat"}
       backTo={`/flats/${flatId}`}
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* You owe */}
         <Card>
           <CardHeader
             title="You owe"
             subtitle={youOwe.length ? "Payments you should make" : "You're all good"}
-            right={<Pill tone={youOwe.length ? "neg" : "neutral"}>{youOwe.length ? "Action" : "OK"}</Pill>}
+            right={
+              <Pill tone={youOwe.length ? "neg" : "neutral"}>
+                {youOwe.length ? formatMoney(oweTotal) : "OK"}
+              </Pill>
+            }
           />
           <CardBody>
             {!myEmail ? (
@@ -114,7 +122,7 @@ function FlatBalance() {
                 {youOwe.map((s, i) => (
                   <li
                     key={i}
-                    className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2"
+                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-slate-900" title={s?.to}>
@@ -124,7 +132,9 @@ function FlatBalance() {
                         <p className="truncate text-xs text-slate-500">{secondaryEmail(s?.to)}</p>
                       ) : null}
                     </div>
-                    <span className="text-sm font-semibold text-rose-700">{formatMoney(s?.amount)}</span>
+                    <span className="text-sm font-semibold text-rose-700">
+                      {formatMoney(s?.amount)}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -137,7 +147,11 @@ function FlatBalance() {
           <CardHeader
             title="You receive"
             subtitle={youReceive.length ? "Payments you should receive" : "No incoming payments"}
-            right={<Pill tone={youReceive.length ? "pos" : "neutral"}>{youReceive.length ? "Incoming" : "OK"}</Pill>}
+            right={
+              <Pill tone={youReceive.length ? "pos" : "neutral"}>
+                {youReceive.length ? formatMoney(receiveTotal) : "OK"}
+              </Pill>
+            }
           />
           <CardBody>
             {!myEmail ? (
@@ -149,7 +163,7 @@ function FlatBalance() {
                 {youReceive.map((s, i) => (
                   <li
                     key={i}
-                    className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2"
+                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2"
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-slate-900" title={s?.from}>
@@ -159,7 +173,9 @@ function FlatBalance() {
                         <p className="truncate text-xs text-slate-500">{secondaryEmail(s?.from)}</p>
                       ) : null}
                     </div>
-                    <span className="text-sm font-semibold text-emerald-700">{formatMoney(s?.amount)}</span>
+                    <span className="text-sm font-semibold text-emerald-700">
+                      {formatMoney(s?.amount)}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -174,14 +190,14 @@ function FlatBalance() {
             {totals.length === 0 ? (
               <p className="text-sm text-slate-700">No data yet</p>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {totals.map((t, idx) => {
                   const net = Number(t?.net || 0);
                   const tone = net > 0 ? "pos" : net < 0 ? "neg" : "neutral";
                   return (
                     <div
                       key={t?.userId || idx}
-                      className="rounded-xl border border-slate-200 px-3 py-3"
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-3"
                       title={t?.email}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -212,7 +228,7 @@ function FlatBalance() {
             ) : (
               <ul className="space-y-2">
                 {settlements.map((s, i) => (
-                  <li key={i} className="rounded-xl border border-slate-200 px-3 py-3">
+                  <li key={i} className="rounded-xl border border-slate-200 bg-white px-3 py-3">
                     <p className="text-sm text-slate-900">
                       <span className="font-semibold" title={s?.from}>
                         {label(s?.from)}
@@ -222,7 +238,9 @@ function FlatBalance() {
                         {label(s?.to)}
                       </span>
                     </p>
-                    <p className="mt-1 text-sm font-semibold text-slate-900">{formatMoney(s?.amount)}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-900">
+                      {formatMoney(s?.amount)}
+                    </p>
                   </li>
                 ))}
               </ul>

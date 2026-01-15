@@ -1,4 +1,4 @@
-import { useEffect, useState, useContext } from "react";
+import { useEffect, useState, useContext, useMemo } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/api";
 import { AuthContext } from "../context/auth.context";
@@ -9,6 +9,11 @@ function FlatsList() {
   const [flats, setFlats] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const { logout } = useContext(AuthContext);
+
+  const flatsCountLabel = useMemo(() => {
+    const n = flats.length;
+    return `${n} ${n === 1 ? "flat" : "flats"}`;
+  }, [flats.length]);
 
   const getFlats = async () => {
     try {
@@ -32,11 +37,11 @@ function FlatsList() {
   if (isLoading) {
     return (
       <ResponsiveLayout title="My Flats" subtitle="Loading…">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="h-28 rounded-2xl bg-slate-200/60 animate-pulse" />
-          <div className="h-28 rounded-2xl bg-slate-200/60 animate-pulse" />
-          <div className="h-28 rounded-2xl bg-slate-200/60 animate-pulse" />
-          <div className="h-28 rounded-2xl bg-slate-200/60 animate-pulse" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="h-28 animate-pulse rounded-2xl bg-slate-200/60" />
+          <div className="h-28 animate-pulse rounded-2xl bg-slate-200/60" />
+          <div className="h-28 animate-pulse rounded-2xl bg-slate-200/60" />
+          <div className="h-28 animate-pulse rounded-2xl bg-slate-200/60" />
         </div>
       </ResponsiveLayout>
     );
@@ -47,18 +52,27 @@ function FlatsList() {
       title="My Flats"
       subtitle="Choose a flat to manage tasks and expenses"
       right={
-        <Button variant="ghost" onClick={logout}>
+        <Button
+          onClick={logout}
+          className="border border-slate-200 bg-slate-100 text-slate-900 hover:bg-slate-200"
+        >
           Logout
         </Button>
       }
     >
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <p className="text-sm text-slate-600">
-          {flats.length} {flats.length === 1 ? "flat" : "flats"}
-        </p>
+      {/* Top actions row:
+          - Removes the extra “Manage your shared places” text
+          - “Create flat” becomes full-width on mobile and aligned right on desktop
+      */}
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 ring-1 ring-slate-200">
+            {flatsCountLabel}
+          </span>
+        </div>
 
-        <Link to="/flats/create">
-          <Button>+ Create Flat</Button>
+        <Link to="/flats/create" className="sm:ml-auto">
+          <Button className="w-full sm:w-auto">+ Create flat</Button>
         </Link>
       </div>
 
@@ -74,14 +88,17 @@ function FlatsList() {
           </CardBody>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {flats.map((flat) => (
             <Link key={flat._id} to={`/flats/${flat._id}`} className="block">
-              <Card className="hover:shadow-md transition">
-                <CardHeader title={flat.name} subtitle={flat.description || "No description"} />
+              <Card className="transition hover:shadow-md">
+                <CardHeader
+                  title={flat.name}
+                  subtitle={flat.description || "No description"}
+                />
                 <CardBody>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500">Open</span>
+                    <span className="text-xs text-emerald-700">Open flat</span>
                     <span className="text-sm font-medium text-slate-900">→</span>
                   </div>
                 </CardBody>
@@ -95,3 +112,5 @@ function FlatsList() {
 }
 
 export default FlatsList;
+
+
