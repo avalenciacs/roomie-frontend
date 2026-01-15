@@ -288,9 +288,14 @@ function FlatDetails() {
       subtitle={flat.description || "Shared flat workspace"}
       backTo="/"
       right={
-        <Link to={`/flats/${flatId}/balance`}>
-          <Button>View Balance</Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link to={`/flats/${flatId}/dashboard`}>
+            <Button>Dashboard</Button>
+          </Link>
+          <Link to={`/flats/${flatId}/balance`}>
+            <Button variant="outline">Balance</Button>
+          </Link>
+        </div>
       }
     >
       {pageError ? (

@@ -1,61 +1,64 @@
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import FlatsList from "./pages/FlatsList";
 import CreateFlat from "./pages/CreateFlat";
 import FlatDetails from "./pages/FlatDetails";
-import FlatBalance from "./pages/FlatBalance";
 import IsPrivate from "./components/IsPrivate";
-import Header from "./components/Header";
+import FlatBalance from "./pages/FlatBalance";
+import FlatDashboard from "./pages/FlatDashboard";
 
 function App() {
-  const location = useLocation();
-
   return (
-    <>
-      <Header />
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
 
-      <Routes location={location}>
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+      <Route
+        path="/"
+        element={
+          <IsPrivate>
+            <FlatsList />
+          </IsPrivate>
+        }
+      />
 
-        <Route
-          path="/"
-          element={
-            <IsPrivate>
-              <FlatsList />
-            </IsPrivate>
-          }
-        />
+      <Route
+        path="/flats/create"
+        element={
+          <IsPrivate>
+            <CreateFlat />
+          </IsPrivate>
+        }
+      />
 
-        <Route
-          path="/flats/create"
-          element={
-            <IsPrivate>
-              <CreateFlat />
-            </IsPrivate>
-          }
-        />
+      <Route
+        path="/flats/:flatId/dashboard"
+        element={
+          <IsPrivate>
+            <FlatDashboard />
+          </IsPrivate>
+        }
+      />
 
-        <Route
-          path="/flats/:flatId"
-          element={
-            <IsPrivate>
-              <FlatDetails />
-            </IsPrivate>
-          }
-        />
+      <Route
+        path="/flats/:flatId"
+        element={
+          <IsPrivate>
+            <FlatDetails />
+          </IsPrivate>
+        }
+      />
 
-        <Route
-          path="/flats/:flatId/balance"
-          element={
-            <IsPrivate>
-              <FlatBalance />
-            </IsPrivate>
-          }
-        />
-      </Routes>
-    </>
+      <Route
+        path="/flats/:flatId/balance"
+        element={
+          <IsPrivate>
+            <FlatBalance />
+          </IsPrivate>
+        }
+      />
+    </Routes>
   );
 }
 
