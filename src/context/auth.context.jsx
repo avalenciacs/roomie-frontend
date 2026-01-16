@@ -29,6 +29,7 @@ function AuthProvider({ children }) {
       setUser(response.data);
       setIsLoggedIn(true);
     } catch (error) {
+      console.error("Auth verification failed:", error.message);
       localStorage.removeItem("authToken");
       setUser(null);
       setIsLoggedIn(false);
