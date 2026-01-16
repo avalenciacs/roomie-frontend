@@ -1,3 +1,4 @@
+// src/App.jsx
 import { Routes, Route } from "react-router-dom";
 import IsPrivate from "./components/IsPrivate";
 import Header from "./components/Header";
@@ -7,13 +8,12 @@ import Signup from "./pages/Signup";
 import FlatsList from "./pages/FlatsList";
 import FlatDetails from "./pages/FlatDetails";
 import FlatBalance from "./pages/FlatBalance";
-import FlatDashboard from "./pages/FlatDashboard";
+import FlatDashboardPage from "./pages/FlatDashboardPage";
 
 function App() {
   return (
     <>
       <Header />
-
       <Routes>
         {/* Public */}
         <Route path="/login" element={<Login />} />
@@ -51,7 +51,7 @@ function App() {
           path="/flats/:flatId/dashboard"
           element={
             <IsPrivate>
-              <FlatDashboard />
+              <FlatDashboardPage />
             </IsPrivate>
           }
         />

@@ -36,7 +36,8 @@ function CreateFlat() {
       navigate("/");
     } catch (error) {
       setErrorMessage(
-        error?.response?.data?.message || "Error creating flat. Please try again."
+        error?.response?.data?.message ||
+          "Error creating flat. Please try again."
       );
     } finally {
       setIsSubmitting(false);
@@ -130,7 +131,8 @@ function CreateFlat() {
 
           {/* Subtle footer */}
           <div className="border-t border-slate-100 bg-slate-50 px-6 py-4 text-xs text-slate-500 md:px-8">
-            Tip: After creating a flat, you can invite roommates from the flat details page.
+            Tip: After creating a flat, you can invite roommates from the flat
+            details page.
           </div>
         </div>
       </div>

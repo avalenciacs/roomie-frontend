@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../api/api";
@@ -24,8 +23,12 @@ export default function FlatDashboardPage() {
 
       try {
         const [flatRes, expRes] = await Promise.all([
-          api.get(`/api/flats/${flatId}`, { headers: { Authorization: `Bearer ${token}` } }),
-          api.get(`/api/flats/${flatId}/expenses`, { headers: { Authorization: `Bearer ${token}` } }),
+          api.get(`/api/flats/${flatId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          api.get(`/api/flats/${flatId}/expenses`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
         ]);
 
         if (!alive) return;
@@ -47,7 +50,11 @@ export default function FlatDashboardPage() {
 
   if (loading) {
     return (
-      <ResponsiveLayout title="Dashboard" subtitle="Loading…" backTo={`/flats/${flatId}`}>
+      <ResponsiveLayout
+        title="Dashboard"
+        subtitle="Loading…"
+        backTo={`/flats/${flatId}`}
+      >
         <div className="h-56 rounded-2xl bg-slate-200/60 animate-pulse" />
       </ResponsiveLayout>
     );
@@ -58,8 +65,12 @@ export default function FlatDashboardPage() {
       <ResponsiveLayout title="Dashboard" backTo={`/flats/${flatId}`}>
         <Card>
           <CardBody>
-            <p className="text-sm font-semibold text-slate-900">Dashboard not available</p>
-            {pageError ? <p className="mt-1 text-sm text-slate-600">{pageError}</p> : null}
+            <p className="text-sm font-semibold text-slate-900">
+              Dashboard not available
+            </p>
+            {pageError ? (
+              <p className="mt-1 text-sm text-slate-600">{pageError}</p>
+            ) : null}
             <div className="mt-4">
               <Link to={`/flats/${flatId}`}>
                 <Button>Back to flat</Button>

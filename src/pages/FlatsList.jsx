@@ -99,7 +99,9 @@ function FlatsList() {
                 <CardBody>
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-emerald-700">Open flat</span>
-                    <span className="text-sm font-medium text-slate-900">→</span>
+                    <span className="text-sm font-medium text-slate-900">
+                      →
+                    </span>
                   </div>
                 </CardBody>
               </Card>
@@ -112,5 +114,3 @@ function FlatsList() {
 }
 
 export default FlatsList;
-
-

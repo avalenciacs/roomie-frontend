@@ -75,11 +75,8 @@ function Login() {
             {/* FORM — top on mobile, right on desktop */}
             <div className="order-1 p-5 md:order-2 md:p-10">
               {/* Brand: tighter on mobile */}
-              
 
-              <h1 className="text-2xl font-semibold text-slate-900">
-                Sign in
-              </h1>
+              <h1 className="text-2xl font-semibold text-slate-900">Sign in</h1>
               <p className="mt-1 text-sm text-slate-600">
                 Use your account to access your flats.
               </p>
@@ -91,7 +88,10 @@ function Login() {
               )}
 
               {/* tighter top margin on mobile */}
-              <form onSubmit={handleLoginSubmit} className="mt-4 space-y-4 md:mt-6">
+              <form
+                onSubmit={handleLoginSubmit}
+                className="mt-4 space-y-4 md:mt-6"
+              >
                 <div>
                   <label className="text-sm font-medium text-slate-700">
                     Email
@@ -139,7 +139,6 @@ function Login() {
                     Create account
                   </Link>
                 </div>
-                
               </form>
             </div>
           </div>
@@ -150,4 +149,3 @@ function Login() {
 }
 
 export default Login;
-

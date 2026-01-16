@@ -48,7 +48,8 @@ function Signup() {
               </h2>
 
               <p className="mt-2 text-white/90 md:mt-3">
-                Set your name and start managing shared living with your roommates.
+                Set your name and start managing shared living with your
+                roommates.
               </p>
 
               <ul className="mt-5 space-y-2.5 text-sm md:mt-6 md:space-y-3 md:text-base">
@@ -73,9 +74,12 @@ function Signup() {
               </ul>
 
               <div className="mt-5 rounded-xl bg-white/10 p-4 text-sm text-white/90 md:mt-6">
-                <p className="font-semibold text-white">Password requirements</p>
+                <p className="font-semibold text-white">
+                  Password requirements
+                </p>
                 <p className="mt-1">
-                  Min. 6 characters, 1 number, 1 lowercase and 1 uppercase letter.
+                  Min. 6 characters, 1 number, 1 lowercase and 1 uppercase
+                  letter.
                 </p>
               </div>
             </div>
@@ -94,9 +98,14 @@ function Signup() {
               )}
 
               {/* SAME form spacing as Login */}
-              <form onSubmit={handleSignupSubmit} className="mt-4 space-y-4 md:mt-6">
+              <form
+                onSubmit={handleSignupSubmit}
+                className="mt-4 space-y-4 md:mt-6"
+              >
                 <div>
-                  <label className="text-sm font-medium text-slate-700">Name</label>
+                  <label className="text-sm font-medium text-slate-700">
+                    Name
+                  </label>
                   <input
                     className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
                     value={name}
@@ -108,7 +117,9 @@ function Signup() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-slate-700">Email</label>
+                  <label className="text-sm font-medium text-slate-700">
+                    Email
+                  </label>
                   <input
                     type="email"
                     className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
@@ -121,7 +132,9 @@ function Signup() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-slate-700">Password</label>
+                  <label className="text-sm font-medium text-slate-700">
+                    Password
+                  </label>
                   <input
                     type="password"
                     className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
@@ -154,7 +167,6 @@ function Signup() {
                     Sign in
                   </Link>
                 </div>
-
               </form>
             </div>
           </div>

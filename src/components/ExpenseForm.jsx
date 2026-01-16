@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button, Input } from "./ui/ui";
 
@@ -35,7 +34,9 @@ export default function ExpenseForm({ members = [], onCreate }) {
       title: title.trim(),
       amount: Number(amount),
       paidBy,
-      splitBetween: splitBetween.length ? splitBetween : members.map((m) => m._id),
+      splitBetween: splitBetween.length
+        ? splitBetween
+        : members.map((m) => m._id),
       date,
       category,
       notes: notes.trim(),
@@ -56,12 +57,24 @@ export default function ExpenseForm({ members = [], onCreate }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className="text-sm font-medium text-slate-700">Title</label>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Groceries" required />
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Groceries"
+            required
+          />
         </div>
 
         <div>
           <label className="text-sm font-medium text-slate-700">Amount</label>
-          <Input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="25.50" required />
+          <Input
+            type="number"
+            step="0.01"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="25.50"
+            required
+          />
         </div>
 
         <div>
@@ -97,12 +110,22 @@ export default function ExpenseForm({ members = [], onCreate }) {
 
         <div>
           <label className="text-sm font-medium text-slate-700">Date</label>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <Input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
         </div>
 
         <div>
-          <label className="text-sm font-medium text-slate-700">Notes (optional)</label>
-          <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything relevant…" />
+          <label className="text-sm font-medium text-slate-700">
+            Notes (optional)
+          </label>
+          <Input
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Anything relevant…"
+          />
         </div>
       </div>
 

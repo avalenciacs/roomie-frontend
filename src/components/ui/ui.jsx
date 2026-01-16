@@ -1,6 +1,8 @@
 export function Card({ children, className = "" }) {
   return (
-    <div className={`rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`}>
+    <div
+      className={`rounded-2xl border border-slate-200 bg-white shadow-sm ${className}`}
+    >
       {children}
     </div>
   );
@@ -30,13 +32,20 @@ export function Pill({ children, tone = "neutral" }) {
       ? "bg-rose-50 text-rose-700 border-rose-200"
       : "bg-slate-50 text-slate-700 border-slate-200";
   return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${cls}`}>
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${cls}`}
+    >
       {children}
     </span>
   );
 }
 
-export function Button({ children, variant = "primary", className = "", ...props }) {
+export function Button({
+  children,
+  variant = "primary",
+  className = "",
+  ...props
+}) {
   const base =
     "inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition active:scale-[0.99]";
   const styles =

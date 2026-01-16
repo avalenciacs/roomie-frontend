@@ -1,6 +1,12 @@
 import { Link } from "react-router-dom";
 
-export default function ResponsiveLayout({ title, subtitle, backTo, right, children }) {
+export default function ResponsiveLayout({
+  title,
+  subtitle,
+  backTo,
+  right,
+  children,
+}) {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur">

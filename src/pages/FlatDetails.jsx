@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState, useContext, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../api/api";
@@ -6,7 +5,14 @@ import { AuthContext } from "../context/auth.context";
 import ExpenseForm from "../components/ExpenseForm";
 import TaskForm from "../components/TaskForm";
 import ResponsiveLayout from "../components/ResponsiveLayout";
-import { Card, CardBody, CardHeader, Button, Input, Pill } from "../components/ui/ui";
+import {
+  Card,
+  CardBody,
+  CardHeader,
+  Button,
+  Input,
+  Pill,
+} from "../components/ui/ui";
 
 function FlatDetails() {
   const { flatId } = useParams();
@@ -262,8 +268,12 @@ function FlatDetails() {
       <ResponsiveLayout title="Flat" backTo="/">
         <Card>
           <CardBody>
-            <p className="text-sm font-semibold text-slate-900">Flat not found</p>
-            {pageError ? <p className="mt-1 text-sm text-slate-600">{pageError}</p> : null}
+            <p className="text-sm font-semibold text-slate-900">
+              Flat not found
+            </p>
+            {pageError ? (
+              <p className="mt-1 text-sm text-slate-600">{pageError}</p>
+            ) : null}
             <div className="mt-4">
               <Link to="/">
                 <Button>Back</Button>
@@ -305,7 +315,10 @@ function FlatDetails() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* MEMBERS */}
         <Card className="lg:col-span-1">
-          <CardHeader title="Members" subtitle={isOwner ? "Manage members" : "Flat members"} />
+          <CardHeader
+            title="Members"
+            subtitle={isOwner ? "Manage members" : "Flat members"}
+          />
           <CardBody>
             <ul className="space-y-2">
               {flat.members.map((m) => (
@@ -315,10 +328,15 @@ function FlatDetails() {
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-semibold text-slate-900" title={m.email || ""}>
+                      <p
+                        className="truncate text-sm font-semibold text-slate-900"
+                        title={m.email || ""}
+                      >
                         {nameOrEmail(m)}
                       </p>
-                      {m._id === flat.owner ? <Pill tone="neutral">Owner</Pill> : null}
+                      {m._id === flat.owner ? (
+                        <Pill tone="neutral">Owner</Pill>
+                      ) : null}
                     </div>
                     <p className="truncate text-xs text-slate-500">{m.email}</p>
                   </div>
@@ -371,7 +389,9 @@ function FlatDetails() {
             <Card>
               <CardBody>
                 <p className="text-xs text-slate-500">Expenses</p>
-                <p className="mt-1 text-lg font-semibold text-slate-900">{expenses.length}</p>
+                <p className="mt-1 text-lg font-semibold text-slate-900">
+                  {expenses.length}
+                </p>
               </CardBody>
             </Card>
             <Card>
@@ -386,7 +406,10 @@ function FlatDetails() {
 
           {/* EXPENSES FORM */}
           <Card>
-            <CardHeader title="Expenses" subtitle="Create and review shared expenses" />
+            <CardHeader
+              title="Expenses"
+              subtitle="Create and review shared expenses"
+            />
             <CardBody>
               <ExpenseForm members={flat.members} onCreate={createExpense} />
             </CardBody>
@@ -403,7 +426,8 @@ function FlatDetails() {
             <div className="space-y-3">
               {expenses.map((e) => {
                 const creatorId = e.createdBy?._id || e.createdBy || null;
-                const isCreator = creatorId && String(creatorId) === String(user?._id);
+                const isCreator =
+                  creatorId && String(creatorId) === String(user?._id);
                 const isOpen = openExpenseId === e._id;
 
                 return (
@@ -412,7 +436,9 @@ function FlatDetails() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="truncate text-sm font-semibold text-slate-900">{e.title}</p>
+                            <p className="truncate text-sm font-semibold text-slate-900">
+                              {e.title}
+                            </p>
                             <Pill tone="neutral">{formatMoney(e.amount)}</Pill>
                           </div>
 
@@ -421,7 +447,7 @@ function FlatDetails() {
                           </p>
 
                           <p className="text-xs text-slate-500">
-                            {(e.category || "general")} · {fmtDate(e.date)}
+                            {e.category || "general"} · {fmtDate(e.date)}
                           </p>
                         </div>
 
@@ -449,8 +475,11 @@ function FlatDetails() {
                       {isOpen ? (
                         <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
                           <div>
-                            <span className="font-medium text-slate-900">Split between:</span>{" "}
-                            {Array.isArray(e.splitBetween) && e.splitBetween.length ? (
+                            <span className="font-medium text-slate-900">
+                              Split between:
+                            </span>{" "}
+                            {Array.isArray(e.splitBetween) &&
+                            e.splitBetween.length ? (
                               <div className="mt-2 flex flex-wrap gap-2">
                                 {e.splitBetween.map((m) => (
                                   <span
@@ -468,13 +497,19 @@ function FlatDetails() {
                           </div>
 
                           <div className="mt-3">
-                            <span className="font-medium text-slate-900">Created by:</span>{" "}
+                            <span className="font-medium text-slate-900">
+                              Created by:
+                            </span>{" "}
                             <span title={e.createdBy?.email || ""}>
-                              {e.createdBy ? nameOrEmail(e.createdBy) : "Unknown"}
+                              {e.createdBy
+                                ? nameOrEmail(e.createdBy)
+                                : "Unknown"}
                             </span>
                           </div>
 
-                          {e.notes ? <div className="mt-2">Notes: {e.notes}</div> : null}
+                          {e.notes ? (
+                            <div className="mt-2">Notes: {e.notes}</div>
+                          ) : null}
                         </div>
                       ) : null}
                     </CardBody>
@@ -486,7 +521,10 @@ function FlatDetails() {
 
           {/* TASKS FORM */}
           <Card>
-            <CardHeader title="Tasks" subtitle="Assign tasks and track progress" />
+            <CardHeader
+              title="Tasks"
+              subtitle="Assign tasks and track progress"
+            />
             <CardBody>
               <TaskForm members={flat.members} onCreate={createTask} />
             </CardBody>
@@ -505,8 +543,10 @@ function FlatDetails() {
                 const assignedId = t.assignedTo?._id || t.assignedTo || null;
                 const creatorId = t.createdBy?._id || t.createdBy || null;
 
-                const isAssignedToMe = assignedId && String(assignedId) === String(user?._id);
-                const isCreator = creatorId && String(creatorId) === String(user?._id);
+                const isAssignedToMe =
+                  assignedId && String(assignedId) === String(user?._id);
+                const isCreator =
+                  creatorId && String(creatorId) === String(user?._id);
                 const isOpen = openTaskId === t._id;
 
                 return (
@@ -515,12 +555,17 @@ function FlatDetails() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="truncate text-sm font-semibold text-slate-900">{t.title}</p>
-                            <Pill tone={statusTone(t.status)}>{statusLabel(t.status)}</Pill>
+                            <p className="truncate text-sm font-semibold text-slate-900">
+                              {t.title}
+                            </p>
+                            <Pill tone={statusTone(t.status)}>
+                              {statusLabel(t.status)}
+                            </Pill>
                           </div>
 
                           <p className="mt-1 text-sm text-slate-700">
-                            Assigned to: <UserName u={t.assignedTo} fallback="Unassigned" />
+                            Assigned to:{" "}
+                            <UserName u={t.assignedTo} fallback="Unassigned" />
                           </p>
                         </div>
 
@@ -536,13 +581,19 @@ function FlatDetails() {
                           ) : null}
 
                           {isAssignedToMe && t.status === "pending" ? (
-                            <Button className="px-3 py-2" onClick={() => startTask(t._id)}>
+                            <Button
+                              className="px-3 py-2"
+                              onClick={() => startTask(t._id)}
+                            >
                               Start
                             </Button>
                           ) : null}
 
                           {isAssignedToMe && t.status === "doing" ? (
-                            <Button className="px-3 py-2" onClick={() => markTaskDone(t._id)}>
+                            <Button
+                              className="px-3 py-2"
+                              onClick={() => markTaskDone(t._id)}
+                            >
                               Done
                             </Button>
                           ) : null}
@@ -570,16 +621,26 @@ function FlatDetails() {
                       {isOpen ? (
                         <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
                           <div>
-                            <span className="font-medium text-slate-900">Created by:</span>{" "}
+                            <span className="font-medium text-slate-900">
+                              Created by:
+                            </span>{" "}
                             <span title={t.createdBy?.email || ""}>
-                              {t.createdBy ? nameOrEmail(t.createdBy) : "Unknown"}
+                              {t.createdBy
+                                ? nameOrEmail(t.createdBy)
+                                : "Unknown"}
                             </span>
                           </div>
                           <div className="mt-2">
-                            <span className="font-medium text-slate-900">Created at:</span>{" "}
-                            {t.createdAt ? new Date(t.createdAt).toLocaleString() : "-"}
+                            <span className="font-medium text-slate-900">
+                              Created at:
+                            </span>{" "}
+                            {t.createdAt
+                              ? new Date(t.createdAt).toLocaleString()
+                              : "-"}
                           </div>
-                          {t.description ? <div className="mt-2">Notes: {t.description}</div> : null}
+                          {t.description ? (
+                            <div className="mt-2">Notes: {t.description}</div>
+                          ) : null}
                         </div>
                       ) : null}
                     </CardBody>
