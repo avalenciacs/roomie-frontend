@@ -1,4 +1,3 @@
-// src/components/ResponsiveLayout.jsx
 import { Link } from "react-router-dom";
 
 export default function ResponsiveLayout({
@@ -13,7 +12,7 @@ export default function ResponsiveLayout({
 }) {
   return (
     <div className="w-full bg-slate-50 min-h-[calc(100vh-1px)]">
-      {/* Optional slot (ideal for tabs / segmented nav) */}
+
       {top ? <div className="w-full">{top}</div> : null}
 
       <div className="mx-auto w-full max-w-3xl px-4 pb-10">
@@ -22,6 +21,9 @@ export default function ResponsiveLayout({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-3">
+                 
+                 
+
                   {backTo ? (
                     <Link
                       to={backTo}
@@ -51,7 +53,7 @@ export default function ResponsiveLayout({
           </div>
         ) : null}
 
-        <div className={hideHeader ? "pt-4" : "pt-4"}>{children}</div>
+        <div className="pt-4">{children}</div>
       </div>
     </div>
   );

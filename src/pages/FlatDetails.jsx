@@ -1,4 +1,3 @@
-// src/pages/FlatDetails.jsx
 import {
   useEffect,
   useMemo,
@@ -7,12 +6,13 @@ import {
   useCallback,
   useRef,
 } from "react";
-import { useParams, Link, useLocation } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import api from "../api/api";
 import { AuthContext } from "../context/auth.context";
 import ExpenseForm from "../components/ExpenseForm";
 import TaskForm from "../components/TaskForm";
 import ResponsiveLayout from "../components/ResponsiveLayout";
+import FlatTopNav from "../components/FlatTopNav";
 import {
   Card,
   CardBody,
@@ -22,10 +22,9 @@ import {
   Pill,
 } from "../components/ui/ui";
 
-
 function FlatDetails() {
   const { flatId } = useParams();
-  const location = useLocation();
+
   const { user } = useContext(AuthContext);
 
   const [flat, setFlat] = useState(null);
@@ -78,8 +77,7 @@ function FlatDetails() {
     return Number.isNaN(date.getTime()) ? "-" : date.toLocaleDateString();
   };
 
-  const isDashboard = location.pathname.includes(`/flats/${flatId}/dashboard`);
-  const isBalance = location.pathname.includes(`/flats/${flatId}/balance`);
+
 
   const isOwner = flat && String(flat.owner) === String(user?._id);
 
@@ -158,7 +156,7 @@ function FlatDetails() {
       await api.post(
         `/api/flats/${flatId}/members`,
         { email },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       setEmail("");
       await getFlat();
@@ -214,7 +212,7 @@ function FlatDetails() {
       await api.post(
         `/api/flats/${flatId}/tasks`,
         { ...taskData, status: "pending" },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       await getTasks();
     } catch (error) {
@@ -227,7 +225,7 @@ function FlatDetails() {
       await api.put(
         `/api/tasks/${taskId}`,
         { assignedTo: user._id },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       await getTasks();
     } catch (error) {
@@ -240,7 +238,7 @@ function FlatDetails() {
       await api.put(
         `/api/tasks/${taskId}`,
         { status: "doing" },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       await getTasks();
     } catch (error) {
@@ -253,7 +251,7 @@ function FlatDetails() {
       await api.put(
         `/api/tasks/${taskId}`,
         { status: "done" },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       await getTasks();
     } catch (error) {
@@ -291,46 +289,6 @@ function FlatDetails() {
   const toggleExpenseDetails = (id) =>
     setOpenExpenseId((prev) => (prev === id ? null : id));
 
-  // ───────── TOP NAV (3 blocks) ─────────
-  const SegmentedTopNav = (
-    <div className="bg-white border-b border-slate-200">
-      <div className="mx-auto w-full max-w-3xl px-4">
-        <div className="py-3">
-          <div className="grid grid-cols-3 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-            <Link
-              to="/"
-              className="px-3 py-2 text-center text-sm font-medium text-slate-700 hover:bg-slate-100"
-            >
-              Home
-            </Link>
-
-            <Link
-              to={`/flats/${flatId}/dashboard`}
-              className={`px-3 py-2 text-center text-sm font-medium ${
-                isDashboard
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-700 hover:bg-slate-100"
-              }`}
-            >
-              Dashboard
-            </Link>
-
-            <Link
-              to={`/flats/${flatId}/balance`}
-              className={`px-3 py-2 text-center text-sm font-medium ${
-                isBalance
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-700 hover:bg-slate-100"
-              }`}
-            >
-              Balance
-            </Link>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
   const SectionCard = ({ title, subtitle, count, onClick }) => (
     <button type="button" onClick={onClick} className="w-full text-left">
       <Card className="hover:shadow-sm transition">
@@ -353,7 +311,7 @@ function FlatDetails() {
   // ───────── STATES ─────────
   if (isLoading) {
     return (
-      <ResponsiveLayout top={SegmentedTopNav} hideHeader>
+      <ResponsiveLayout top={<FlatTopNav flatId={flatId} />} hideHeader>
         <div className="grid grid-cols-1 gap-4">
           <div className="h-24 animate-pulse rounded-2xl bg-slate-200/60" />
           <div className="h-40 animate-pulse rounded-2xl bg-slate-200/60" />
@@ -365,7 +323,7 @@ function FlatDetails() {
 
   if (!flat) {
     return (
-      <ResponsiveLayout top={SegmentedTopNav} hideHeader>
+      <ResponsiveLayout top={<FlatTopNav flatId={flatId} />} hideHeader>
         <Card>
           <CardBody>
             <p className="text-sm font-semibold text-slate-900">
@@ -375,8 +333,8 @@ function FlatDetails() {
               <p className="mt-1 text-sm text-slate-600">{pageError}</p>
             ) : null}
             <div className="mt-4">
-              <Link to="/">
-                <Button>Back</Button>
+              <Link to="/flats">
+                <Button>Back to My Flats</Button>
               </Link>
             </div>
           </CardBody>
@@ -386,7 +344,8 @@ function FlatDetails() {
   }
 
   return (
-    <ResponsiveLayout top={SegmentedTopNav} hideHeader>
+    <ResponsiveLayout top={<FlatTopNav flatId={flatId} />} hideHeader>
+
       {/* (2) centered name + info */}
       <div className="text-center">
         <h1 className="text-base font-semibold text-slate-900">{flat.name}</h1>
@@ -479,17 +438,17 @@ function FlatDetails() {
                       {overlay === "expenses"
                         ? "Expenses"
                         : overlay === "members"
-                        ? "Members"
-                        : "Tasks"}
+                          ? "Members"
+                          : "Tasks"}
                     </p>
                     <p className="text-xs text-slate-500">
                       {overlay === "expenses"
                         ? "Create and review shared expenses"
                         : overlay === "members"
-                        ? isOwner
-                          ? "Manage members"
-                          : "Flat members"
-                        : "Assign tasks and track progress"}
+                          ? isOwner
+                            ? "Manage members"
+                            : "Flat members"
+                          : "Assign tasks and track progress"}
                     </p>
                   </div>
                   <Button
@@ -812,10 +771,11 @@ function FlatDetails() {
                                         </span>{" "}
                                         {t.createdAt
                                           ? new Date(
-                                              t.createdAt
+                                              t.createdAt,
                                             ).toLocaleString()
                                           : "-"}
                                       </div>
+
                                       {t.description ? (
                                         <div className="mt-2">
                                           Notes: {t.description}
