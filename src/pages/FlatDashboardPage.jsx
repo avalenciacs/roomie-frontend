@@ -1,3 +1,4 @@
+// src/pages/FlatDashboardPage.jsx
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../api/api";
@@ -48,21 +49,51 @@ export default function FlatDashboardPage() {
     };
   }, [flatId, token]);
 
+  // ───────── TOP NAV (igual a FlatDetails) ─────────
+  const SegmentedTopNav = (
+    <div className="bg-white border-b border-slate-200">
+      <div className="mx-auto w-full max-w-3xl px-4">
+        <div className="py-3">
+          <div className="grid grid-cols-3 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+            <Link
+              to={`/flats/${flatId}`}
+              className="px-3 py-2 text-center text-sm font-medium text-slate-700 hover:bg-slate-100"
+            >
+              Flat
+            </Link>
+
+            <Link
+              to={`/flats/${flatId}/dashboard`}
+              className="px-3 py-2 text-center text-sm font-medium bg-slate-900 text-white"
+            >
+              Dashboard
+            </Link>
+
+            <Link
+              to={`/flats/${flatId}/balance`}
+              className="px-3 py-2 text-center text-sm font-medium text-slate-700 hover:bg-slate-100"
+            >
+              Balance
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
-      <ResponsiveLayout
-        title="Dashboard"
-        subtitle="Loading…"
-        backTo={`/flats/${flatId}`}
-      >
-        <div className="h-56 rounded-2xl bg-slate-200/60 animate-pulse" />
+      <ResponsiveLayout top={SegmentedTopNav} hideHeader>
+        <div className="space-y-4">
+          <div className="h-56 rounded-2xl bg-slate-200/60 animate-pulse" />
+        </div>
       </ResponsiveLayout>
     );
   }
 
   if (!flat) {
     return (
-      <ResponsiveLayout title="Dashboard" backTo={`/flats/${flatId}`}>
+      <ResponsiveLayout top={SegmentedTopNav} hideHeader>
         <Card>
           <CardBody>
             <p className="text-sm font-semibold text-slate-900">
@@ -83,26 +114,24 @@ export default function FlatDashboardPage() {
   }
 
   return (
-    <ResponsiveLayout
-      title="Dashboard"
-      subtitle={`Flat · ${flat.name}`}
-      backTo={`/flats/${flatId}`}
-      right={
-        <Link to={`/flats/${flatId}/balance`}>
-          <Button variant="outline">Balance</Button>
-        </Link>
-      }
-    >
-      {pageError ? (
-        <Card className="mb-4">
-          <CardBody>
-            <p className="text-sm font-semibold text-slate-900">Heads up</p>
-            <p className="mt-1 text-sm text-slate-600">{pageError}</p>
-          </CardBody>
-        </Card>
-      ) : null}
+    <ResponsiveLayout top={SegmentedTopNav} hideHeader>
+      <div className="space-y-4">
+        <div className="text-center">
+          <p className="text-sm font-semibold text-slate-900">Dashboard</p>
+          <p className="text-xs text-slate-500">Flat · {flat.name}</p>
+        </div>
 
-      <FlatDashboard expenses={expenses} />
+        {pageError ? (
+          <Card>
+            <CardBody>
+              <p className="text-sm font-semibold text-slate-900">Heads up</p>
+              <p className="mt-1 text-sm text-slate-600">{pageError}</p>
+            </CardBody>
+          </Card>
+        ) : null}
+
+        <FlatDashboard expenses={expenses} />
+      </div>
     </ResponsiveLayout>
   );
 }

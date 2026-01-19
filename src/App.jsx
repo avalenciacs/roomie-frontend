@@ -1,6 +1,6 @@
-// src/App.jsx
 import { Routes, Route } from "react-router-dom";
 import IsPrivate from "./components/IsPrivate";
+
 import Header from "./components/Header";
 
 import Login from "./pages/Login";
@@ -9,11 +9,14 @@ import FlatsList from "./pages/FlatsList";
 import FlatDetails from "./pages/FlatDetails";
 import FlatBalance from "./pages/FlatBalance";
 import FlatDashboardPage from "./pages/FlatDashboardPage";
+import CreateFlat from "./pages/CreateFlat";
 
 function App() {
   return (
-    <>
+    <div className="min-h-screen bg-slate-100 text-slate-900">
+      {/* Logo centrado SIEMPRE */}
       <Header />
+
       <Routes>
         {/* Public */}
         <Route path="/login" element={<Login />} />
@@ -25,6 +28,15 @@ function App() {
           element={
             <IsPrivate>
               <FlatsList />
+            </IsPrivate>
+          }
+        />
+
+        <Route
+          path="/flats/create"
+          element={
+            <IsPrivate>
+              <CreateFlat />
             </IsPrivate>
           }
         />
@@ -56,7 +68,7 @@ function App() {
           }
         />
       </Routes>
-    </>
+    </div>
   );
 }
 

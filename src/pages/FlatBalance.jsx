@@ -1,6 +1,6 @@
-// FlatBalance.jsx
+// src/pages/FlatBalance.jsx
 import { useEffect, useMemo, useState, useContext } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import api from "../api/api";
 import { AuthContext } from "../context/auth.context";
 import ResponsiveLayout from "../components/ResponsiveLayout";
@@ -37,7 +37,41 @@ function FlatBalance() {
   const label = (email) => (email ? nameByEmail[email] || email : "Unknown");
   const secondaryEmail = (email) => (email && nameByEmail[email] ? email : "");
 
+  // ───────── TOP NAV (igual a FlatDetails / Dashboard; Balance activo) ─────────
+  const SegmentedTopNav = (
+    <div className="bg-white border-b border-slate-200">
+      <div className="mx-auto w-full max-w-3xl px-4">
+        <div className="py-3">
+          <div className="grid grid-cols-3 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+            <Link
+              to={`/flats/${flatId}`}
+              className="px-3 py-2 text-center text-sm font-medium text-slate-700 hover:bg-slate-100"
+            >
+              Back
+            </Link>
+
+            <Link
+              to={`/flats/${flatId}/dashboard`}
+              className="px-3 py-2 text-center text-sm font-medium text-slate-700 hover:bg-slate-100"
+            >
+              Dashboard
+            </Link>
+
+            <Link
+              to={`/flats/${flatId}/balance`}
+              className="px-3 py-2 text-center text-sm font-medium bg-slate-900 text-white"
+            >
+              Balance
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   useEffect(() => {
+    let alive = true;
+
     const load = async () => {
       try {
         const [balanceRes, flatRes] = await Promise.all([
@@ -49,24 +83,25 @@ function FlatBalance() {
           }),
         ]);
 
+        if (!alive) return;
         setData(balanceRes.data);
         setFlat(flatRes.data);
       } catch (e) {
         alert(e?.response?.data?.message || "Error loading balance");
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
     };
+
     load();
+    return () => {
+      alive = false;
+    };
   }, [flatId, token]);
 
   if (loading) {
     return (
-      <ResponsiveLayout
-        title="Balance"
-        subtitle="Loading…"
-        backTo={`/flats/${flatId}`}
-      >
+      <ResponsiveLayout top={SegmentedTopNav} hideHeader>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="h-40 animate-pulse rounded-2xl bg-slate-200/60" />
           <div className="h-40 animate-pulse rounded-2xl bg-slate-200/60" />
@@ -78,7 +113,7 @@ function FlatBalance() {
 
   if (!data) {
     return (
-      <ResponsiveLayout title="Balance" backTo={`/flats/${flatId}`}>
+      <ResponsiveLayout top={SegmentedTopNav} hideHeader>
         <Card>
           <CardBody>
             <p className="text-sm text-slate-700">Balance not available.</p>
@@ -92,28 +127,20 @@ function FlatBalance() {
   const settlements = Array.isArray(data.settlements) ? data.settlements : [];
 
   const youOwe = myEmail ? settlements.filter((s) => s?.from === myEmail) : [];
-  const youReceive = myEmail
-    ? settlements.filter((s) => s?.to === myEmail)
-    : [];
+  const youReceive = myEmail ? settlements.filter((s) => s?.to === myEmail) : [];
 
   const sum = (arr) => arr.reduce((acc, x) => acc + Number(x?.amount || 0), 0);
   const oweTotal = sum(youOwe);
   const receiveTotal = sum(youReceive);
 
   return (
-    <ResponsiveLayout
-      title="Balance"
-      subtitle={flat?.name ? `Flat · ${flat.name}` : "Flat"}
-      backTo={`/flats/${flatId}`}
-    >
+    <ResponsiveLayout top={SegmentedTopNav} hideHeader>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {/* You owe */}
         <Card>
           <CardHeader
             title="You owe"
-            subtitle={
-              youOwe.length ? "Payments you should make" : "You're all good"
-            }
+            subtitle={youOwe.length ? "Payments you should make" : "You're all good"}
             right={
               <Pill tone={youOwe.length ? "neg" : "neutral"}>
                 {youOwe.length ? formatMoney(oweTotal) : "OK"}
@@ -135,10 +162,7 @@ function FlatBalance() {
                     className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2"
                   >
                     <div className="min-w-0">
-                      <p
-                        className="truncate text-sm font-semibold text-slate-900"
-                        title={s?.to}
-                      >
+                      <p className="truncate text-sm font-semibold text-slate-900" title={s?.to}>
                         {label(s?.to)}
                       </p>
                       {secondaryEmail(s?.to) ? (
@@ -161,11 +185,7 @@ function FlatBalance() {
         <Card>
           <CardHeader
             title="You receive"
-            subtitle={
-              youReceive.length
-                ? "Payments you should receive"
-                : "No incoming payments"
-            }
+            subtitle={youReceive.length ? "Payments you should receive" : "No incoming payments"}
             right={
               <Pill tone={youReceive.length ? "pos" : "neutral"}>
                 {youReceive.length ? formatMoney(receiveTotal) : "OK"}
@@ -187,10 +207,7 @@ function FlatBalance() {
                     className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-2"
                   >
                     <div className="min-w-0">
-                      <p
-                        className="truncate text-sm font-semibold text-slate-900"
-                        title={s?.from}
-                      >
+                      <p className="truncate text-sm font-semibold text-slate-900" title={s?.from}>
                         {label(s?.from)}
                       </p>
                       {secondaryEmail(s?.from) ? (
@@ -211,10 +228,7 @@ function FlatBalance() {
 
         {/* Per person */}
         <Card className="md:col-span-2">
-          <CardHeader
-            title="Balance per person"
-            subtitle="Positive receives · Negative owes"
-          />
+          <CardHeader title="Balance per person" subtitle="Positive receives · Negative owes" />
           <CardBody>
             {totals.length === 0 ? (
               <p className="text-sm text-slate-700">No data yet</p>
@@ -223,6 +237,7 @@ function FlatBalance() {
                 {totals.map((t, idx) => {
                   const net = Number(t?.net || 0);
                   const tone = net > 0 ? "pos" : net < 0 ? "neg" : "neutral";
+
                   return (
                     <div
                       key={t?.userId || idx}
@@ -252,20 +267,14 @@ function FlatBalance() {
 
         {/* Settlements */}
         <Card className="md:col-span-2">
-          <CardHeader
-            title="Settlements"
-            subtitle="Suggested payments to settle up"
-          />
+          <CardHeader title="Settlements" subtitle="Suggested payments to settle up" />
           <CardBody>
             {settlements.length === 0 ? (
               <p className="text-sm text-slate-700">All settled ✅</p>
             ) : (
               <ul className="space-y-2">
                 {settlements.map((s, i) => (
-                  <li
-                    key={i}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-3"
-                  >
+                  <li key={i} className="rounded-xl border border-slate-200 bg-white px-3 py-3">
                     <p className="text-sm text-slate-900">
                       <span className="font-semibold" title={s?.from}>
                         {label(s?.from)}

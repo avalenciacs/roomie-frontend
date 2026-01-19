@@ -1,5 +1,13 @@
-import { useEffect, useMemo, useState, useContext, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
+// src/pages/FlatDetails.jsx
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useContext,
+  useCallback,
+  useRef,
+} from "react";
+import { useParams, Link, useLocation } from "react-router-dom";
 import api from "../api/api";
 import { AuthContext } from "../context/auth.context";
 import ExpenseForm from "../components/ExpenseForm";
@@ -14,18 +22,26 @@ import {
   Pill,
 } from "../components/ui/ui";
 
+
 function FlatDetails() {
   const { flatId } = useParams();
+  const location = useLocation();
   const { user } = useContext(AuthContext);
 
   const [flat, setFlat] = useState(null);
   const [expenses, setExpenses] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [email, setEmail] = useState("");
+
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
+
   const [openTaskId, setOpenTaskId] = useState(null);
   const [openExpenseId, setOpenExpenseId] = useState(null);
+
+  // Overlay: "expenses" | "members" | "tasks" | ""
+  const [overlay, setOverlay] = useState("");
+  const scrollYRef = useRef(0);
 
   const token = localStorage.getItem("authToken");
 
@@ -62,6 +78,11 @@ function FlatDetails() {
     return Number.isNaN(date.getTime()) ? "-" : date.toLocaleDateString();
   };
 
+  const isDashboard = location.pathname.includes(`/flats/${flatId}/dashboard`);
+  const isBalance = location.pathname.includes(`/flats/${flatId}/balance`);
+
+  const isOwner = flat && String(flat.owner) === String(user?._id);
+
   // ───────── FETCH ─────────
   const getFlat = useCallback(async () => {
     const res = await api.get(`/api/flats/${flatId}`, {
@@ -90,7 +111,6 @@ function FlatDetails() {
     const load = async () => {
       setIsLoading(true);
       setPageError("");
-
       try {
         await Promise.all([getFlat(), getExpenses(), getTasks()]);
       } catch (err) {
@@ -108,6 +128,28 @@ function FlatDetails() {
       alive = false;
     };
   }, [getFlat, getExpenses, getTasks]);
+
+  // ───────── OVERLAY helpers ─────────
+  const openOverlay = (id) => {
+    scrollYRef.current = window.scrollY || 0;
+    document.body.style.overflow = "hidden";
+    setOverlay(id);
+  };
+
+  const closeOverlay = () => {
+    document.body.style.overflow = "";
+    setOverlay("");
+    requestAnimationFrame(() => window.scrollTo(0, scrollYRef.current || 0));
+  };
+
+  // Close on ESC
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape" && overlay) closeOverlay();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [overlay]);
 
   // ───────── MEMBERS ─────────
   const handleAddMember = async (e) => {
@@ -246,18 +288,76 @@ function FlatDetails() {
 
   const toggleTaskDetails = (id) =>
     setOpenTaskId((prev) => (prev === id ? null : id));
-
   const toggleExpenseDetails = (id) =>
     setOpenExpenseId((prev) => (prev === id ? null : id));
+
+  // ───────── TOP NAV (3 blocks) ─────────
+  const SegmentedTopNav = (
+    <div className="bg-white border-b border-slate-200">
+      <div className="mx-auto w-full max-w-3xl px-4">
+        <div className="py-3">
+          <div className="grid grid-cols-3 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+            <Link
+              to="/"
+              className="px-3 py-2 text-center text-sm font-medium text-slate-700 hover:bg-slate-100"
+            >
+              Home
+            </Link>
+
+            <Link
+              to={`/flats/${flatId}/dashboard`}
+              className={`px-3 py-2 text-center text-sm font-medium ${
+                isDashboard
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              Dashboard
+            </Link>
+
+            <Link
+              to={`/flats/${flatId}/balance`}
+              className={`px-3 py-2 text-center text-sm font-medium ${
+                isBalance
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              Balance
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const SectionCard = ({ title, subtitle, count, onClick }) => (
+    <button type="button" onClick={onClick} className="w-full text-left">
+      <Card className="hover:shadow-sm transition">
+        <CardBody>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-900">{title}</p>
+              <p className="text-xs text-slate-500">{subtitle}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Pill tone="neutral">{count}</Pill>
+              <span className="text-sm font-medium text-slate-700">Show</span>
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+    </button>
+  );
 
   // ───────── STATES ─────────
   if (isLoading) {
     return (
-      <ResponsiveLayout title="Flat" subtitle="Loading…" backTo="/">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <div className="h-56 animate-pulse rounded-2xl bg-slate-200/60 lg:col-span-1" />
-          <div className="h-56 animate-pulse rounded-2xl bg-slate-200/60 lg:col-span-2" />
-          <div className="h-72 animate-pulse rounded-2xl bg-slate-200/60 lg:col-span-2" />
+      <ResponsiveLayout top={SegmentedTopNav} hideHeader>
+        <div className="grid grid-cols-1 gap-4">
+          <div className="h-24 animate-pulse rounded-2xl bg-slate-200/60" />
+          <div className="h-40 animate-pulse rounded-2xl bg-slate-200/60" />
+          <div className="h-40 animate-pulse rounded-2xl bg-slate-200/60" />
         </div>
       </ResponsiveLayout>
     );
@@ -265,7 +365,7 @@ function FlatDetails() {
 
   if (!flat) {
     return (
-      <ResponsiveLayout title="Flat" backTo="/">
+      <ResponsiveLayout top={SegmentedTopNav} hideHeader>
         <Card>
           <CardBody>
             <p className="text-sm font-semibold text-slate-900">
@@ -285,26 +385,18 @@ function FlatDetails() {
     );
   }
 
-  const isOwner = String(flat.owner) === String(user?._id);
-
   return (
-    <ResponsiveLayout
-      title={flat.name}
-      subtitle={flat.description || "Shared flat workspace"}
-      backTo="/"
-      right={
-        <div className="flex items-center gap-2">
-          <Link to={`/flats/${flatId}/dashboard`}>
-            <Button>Dashboard</Button>
-          </Link>
-          <Link to={`/flats/${flatId}/balance`}>
-            <Button variant="outline">Balance</Button>
-          </Link>
-        </div>
-      }
-    >
+    <ResponsiveLayout top={SegmentedTopNav} hideHeader>
+      {/* (2) centered name + info */}
+      <div className="text-center">
+        <h1 className="text-base font-semibold text-slate-900">{flat.name}</h1>
+        <p className="mt-0.5 text-sm text-slate-600">
+          {flat.description || "Shared flat workspace"}
+        </p>
+      </div>
+
       {pageError ? (
-        <Card className="mb-4">
+        <Card className="mt-4">
           <CardBody>
             <p className="text-sm font-semibold text-slate-900">Heads up</p>
             <p className="mt-1 text-sm text-slate-600">{pageError}</p>
@@ -312,345 +404,451 @@ function FlatDetails() {
         </Card>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* MEMBERS */}
-        <Card className="lg:col-span-1">
-          <CardHeader
-            title="Members"
-            subtitle={isOwner ? "Manage members" : "Flat members"}
-          />
+      {/* (3) Stats: NO horizontal scroll, 3 juntos */}
+      <div className="mt-4 hidden sm:grid grid-cols-3 gap-3">
+        <Card>
           <CardBody>
-            <ul className="space-y-2">
-              {flat.members.map((m) => (
-                <li
-                  key={m._id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p
-                        className="truncate text-sm font-semibold text-slate-900"
-                        title={m.email || ""}
-                      >
-                        {nameOrEmail(m)}
-                      </p>
-                      {m._id === flat.owner ? (
-                        <Pill tone="neutral">Owner</Pill>
-                      ) : null}
-                    </div>
-                    <p className="truncate text-xs text-slate-500">{m.email}</p>
-                  </div>
-
-                  {isOwner && m._id !== flat.owner ? (
-                    <Button
-                      variant="outline"
-                      className="px-3 py-2"
-                      onClick={() => handleRemoveMember(m._id)}
-                    >
-                      Remove
-                    </Button>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-
-            {isOwner ? (
-              <form onSubmit={handleAddMember} className="mt-4 space-y-2">
-                <Input
-                  type="email"
-                  placeholder="member@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-                <Button type="submit" className="w-full">
-                  Add member
-                </Button>
-                <p className="text-xs text-slate-500">
-                  Tip: members must have an account first.
-                </p>
-              </form>
-            ) : null}
+            <p className="text-[11px] text-slate-500">Members</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900">
+              {flat.members?.length || 0}
+            </p>
           </CardBody>
         </Card>
 
-        {/* MAIN */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* QUICK STATS */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Card>
-              <CardBody>
-                <p className="text-xs text-slate-500">Members</p>
-                <p className="mt-1 text-lg font-semibold text-slate-900">
-                  {flat.members?.length || 0}
-                </p>
-              </CardBody>
-            </Card>
-            <Card>
-              <CardBody>
-                <p className="text-xs text-slate-500">Expenses</p>
-                <p className="mt-1 text-lg font-semibold text-slate-900">
-                  {expenses.length}
-                </p>
-              </CardBody>
-            </Card>
-            <Card>
-              <CardBody>
-                <p className="text-xs text-slate-500">Open tasks</p>
-                <p className="mt-1 text-lg font-semibold text-slate-900">
-                  {tasks.filter((t) => t.status !== "done").length}
-                </p>
-              </CardBody>
-            </Card>
-          </div>
+        <Card>
+          <CardBody>
+            <p className="text-[11px] text-slate-500">Expenses</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900">
+              {expenses.length}
+            </p>
+          </CardBody>
+        </Card>
 
-          {/* EXPENSES FORM */}
-          <Card>
-            <CardHeader
-              title="Expenses"
-              subtitle="Create and review shared expenses"
-            />
-            <CardBody>
-              <ExpenseForm members={flat.members} onCreate={createExpense} />
-            </CardBody>
-          </Card>
-
-          {/* EXPENSES LIST */}
-          {expenses.length === 0 ? (
-            <Card>
-              <CardBody>
-                <p className="text-sm text-slate-700">No expenses yet</p>
-              </CardBody>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {expenses.map((e) => {
-                const creatorId = e.createdBy?._id || e.createdBy || null;
-                const isCreator =
-                  creatorId && String(creatorId) === String(user?._id);
-                const isOpen = openExpenseId === e._id;
-
-                return (
-                  <Card key={e._id}>
-                    <CardBody>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="truncate text-sm font-semibold text-slate-900">
-                              {e.title}
-                            </p>
-                            <Pill tone="neutral">{formatMoney(e.amount)}</Pill>
-                          </div>
-
-                          <p className="mt-1 text-sm text-slate-700">
-                            Paid by: <UserName u={e.paidBy} />
-                          </p>
-
-                          <p className="text-xs text-slate-500">
-                            {e.category || "general"} · {fmtDate(e.date)}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            className="px-3 py-2"
-                            onClick={() => toggleExpenseDetails(e._id)}
-                          >
-                            {isOpen ? "Hide" : "Details"}
-                          </Button>
-
-                          {isCreator ? (
-                            <Button
-                              variant="outline"
-                              className="px-3 py-2"
-                              onClick={() => deleteExpense(e._id)}
-                            >
-                              Delete
-                            </Button>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      {isOpen ? (
-                        <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
-                          <div>
-                            <span className="font-medium text-slate-900">
-                              Split between:
-                            </span>{" "}
-                            {Array.isArray(e.splitBetween) &&
-                            e.splitBetween.length ? (
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {e.splitBetween.map((m) => (
-                                  <span
-                                    key={m._id}
-                                    className="rounded-full bg-white px-2.5 py-1 text-xs text-slate-700 ring-1 ring-slate-200"
-                                    title={m.email}
-                                  >
-                                    {nameOrEmail(m)}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <span>-</span>
-                            )}
-                          </div>
-
-                          <div className="mt-3">
-                            <span className="font-medium text-slate-900">
-                              Created by:
-                            </span>{" "}
-                            <span title={e.createdBy?.email || ""}>
-                              {e.createdBy
-                                ? nameOrEmail(e.createdBy)
-                                : "Unknown"}
-                            </span>
-                          </div>
-
-                          {e.notes ? (
-                            <div className="mt-2">Notes: {e.notes}</div>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </CardBody>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-
-          {/* TASKS FORM */}
-          <Card>
-            <CardHeader
-              title="Tasks"
-              subtitle="Assign tasks and track progress"
-            />
-            <CardBody>
-              <TaskForm members={flat.members} onCreate={createTask} />
-            </CardBody>
-          </Card>
-
-          {/* TASKS LIST */}
-          {sortedTasks.length === 0 ? (
-            <Card>
-              <CardBody>
-                <p className="text-sm text-slate-700">No tasks yet</p>
-              </CardBody>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {sortedTasks.map((t) => {
-                const assignedId = t.assignedTo?._id || t.assignedTo || null;
-                const creatorId = t.createdBy?._id || t.createdBy || null;
-
-                const isAssignedToMe =
-                  assignedId && String(assignedId) === String(user?._id);
-                const isCreator =
-                  creatorId && String(creatorId) === String(user?._id);
-                const isOpen = openTaskId === t._id;
-
-                return (
-                  <Card key={t._id}>
-                    <CardBody>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="truncate text-sm font-semibold text-slate-900">
-                              {t.title}
-                            </p>
-                            <Pill tone={statusTone(t.status)}>
-                              {statusLabel(t.status)}
-                            </Pill>
-                          </div>
-
-                          <p className="mt-1 text-sm text-slate-700">
-                            Assigned to:{" "}
-                            <UserName u={t.assignedTo} fallback="Unassigned" />
-                          </p>
-                        </div>
-
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                          {!assignedId ? (
-                            <Button
-                              variant="outline"
-                              className="px-3 py-2"
-                              onClick={() => assignTaskToMe(t._id)}
-                            >
-                              Assign to me
-                            </Button>
-                          ) : null}
-
-                          {isAssignedToMe && t.status === "pending" ? (
-                            <Button
-                              className="px-3 py-2"
-                              onClick={() => startTask(t._id)}
-                            >
-                              Start
-                            </Button>
-                          ) : null}
-
-                          {isAssignedToMe && t.status === "doing" ? (
-                            <Button
-                              className="px-3 py-2"
-                              onClick={() => markTaskDone(t._id)}
-                            >
-                              Done
-                            </Button>
-                          ) : null}
-
-                          <Button
-                            variant="ghost"
-                            className="px-3 py-2"
-                            onClick={() => toggleTaskDetails(t._id)}
-                          >
-                            {isOpen ? "Hide" : "Details"}
-                          </Button>
-
-                          {isCreator ? (
-                            <Button
-                              variant="outline"
-                              className="px-3 py-2"
-                              onClick={() => deleteTask(t._id)}
-                            >
-                              Delete
-                            </Button>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      {isOpen ? (
-                        <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
-                          <div>
-                            <span className="font-medium text-slate-900">
-                              Created by:
-                            </span>{" "}
-                            <span title={t.createdBy?.email || ""}>
-                              {t.createdBy
-                                ? nameOrEmail(t.createdBy)
-                                : "Unknown"}
-                            </span>
-                          </div>
-                          <div className="mt-2">
-                            <span className="font-medium text-slate-900">
-                              Created at:
-                            </span>{" "}
-                            {t.createdAt
-                              ? new Date(t.createdAt).toLocaleString()
-                              : "-"}
-                          </div>
-                          {t.description ? (
-                            <div className="mt-2">Notes: {t.description}</div>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </CardBody>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <Card>
+          <CardBody>
+            <p className="text-[11px] text-slate-500">Open</p>
+            <p className="mt-1 text-lg font-semibold text-slate-900">
+              {tasks.filter((t) => t.status !== "done").length}
+            </p>
+          </CardBody>
+        </Card>
       </div>
+
+      {/* Launcher cards (mobile first; also ok for desktop) */}
+      <div className="mt-4 space-y-3">
+        <SectionCard
+          title="Members"
+          subtitle={isOwner ? "Manage members" : "Flat members"}
+          count={flat.members?.length || 0}
+          onClick={() => openOverlay("members")}
+        />
+
+        <SectionCard
+          title="Expenses"
+          subtitle="Create and review shared expenses"
+          count={expenses.length}
+          onClick={() => openOverlay("expenses")}
+        />
+
+        <SectionCard
+          title="Tasks"
+          subtitle="Assign tasks and track progress"
+          count={tasks.length}
+          onClick={() => openOverlay("tasks")}
+        />
+      </div>
+
+      {/* OVERLAY */}
+      {overlay ? (
+        <div className="fixed inset-0 z-50">
+          {/* backdrop */}
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={closeOverlay}
+            className="absolute inset-0 bg-black/30"
+          />
+
+          {/* sheet */}
+          <div className="absolute inset-x-0 bottom-0 max-h-[85vh]">
+            <div className="mx-auto w-full max-w-3xl px-4 pb-4">
+              <div className="rounded-3xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900">
+                      {overlay === "expenses"
+                        ? "Expenses"
+                        : overlay === "members"
+                        ? "Members"
+                        : "Tasks"}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {overlay === "expenses"
+                        ? "Create and review shared expenses"
+                        : overlay === "members"
+                        ? isOwner
+                          ? "Manage members"
+                          : "Flat members"
+                        : "Assign tasks and track progress"}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="px-3 py-2"
+                    onClick={closeOverlay}
+                  >
+                    Hide
+                  </Button>
+                </div>
+
+                <div className="max-h-[75vh] overflow-auto px-4 py-4">
+                  {/* MEMBERS */}
+                  {overlay === "members" ? (
+                    <div className="space-y-3">
+                      <Card>
+                        <CardHeader
+                          title="Members"
+                          subtitle={isOwner ? "Manage members" : "Flat members"}
+                        />
+                        <CardBody>
+                          <ul className="space-y-2">
+                            {flat.members.map((m) => (
+                              <li
+                                key={m._id}
+                                className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2"
+                              >
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <p
+                                      className="truncate text-sm font-semibold text-slate-900"
+                                      title={m.email || ""}
+                                    >
+                                      {nameOrEmail(m)}
+                                    </p>
+                                    {m._id === flat.owner ? (
+                                      <Pill tone="neutral">Owner</Pill>
+                                    ) : null}
+                                  </div>
+                                  <p className="truncate text-xs text-slate-500">
+                                    {m.email}
+                                  </p>
+                                </div>
+
+                                {isOwner && m._id !== flat.owner ? (
+                                  <Button
+                                    variant="outline"
+                                    className="px-3 py-2"
+                                    onClick={() => handleRemoveMember(m._id)}
+                                  >
+                                    Remove
+                                  </Button>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ul>
+
+                          {isOwner ? (
+                            <form
+                              onSubmit={handleAddMember}
+                              className="mt-4 space-y-2"
+                            >
+                              <Input
+                                type="email"
+                                placeholder="member@email.com"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                              />
+                              <Button type="submit" className="w-full">
+                                Add member
+                              </Button>
+                              <p className="text-xs text-slate-500">
+                                Tip: members must have an account first.
+                              </p>
+                            </form>
+                          ) : null}
+                        </CardBody>
+                      </Card>
+                    </div>
+                  ) : null}
+
+                  {/* EXPENSES */}
+                  {overlay === "expenses" ? (
+                    <div className="space-y-3">
+                      <Card>
+                        <CardHeader
+                          title="Add expense"
+                          subtitle="Keep it quick"
+                        />
+                        <CardBody>
+                          <ExpenseForm
+                            members={flat.members}
+                            onCreate={createExpense}
+                          />
+                        </CardBody>
+                      </Card>
+
+                      {expenses.length === 0 ? (
+                        <Card>
+                          <CardBody>
+                            <p className="text-sm text-slate-700">
+                              No expenses yet
+                            </p>
+                          </CardBody>
+                        </Card>
+                      ) : (
+                        <div className="space-y-3">
+                          {expenses.map((e) => {
+                            const creatorId =
+                              e.createdBy?._id || e.createdBy || null;
+                            const isCreator =
+                              creatorId &&
+                              String(creatorId) === String(user?._id);
+                            const isOpen = openExpenseId === e._id;
+
+                            return (
+                              <Card key={e._id}>
+                                <CardBody>
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <p className="truncate text-sm font-semibold text-slate-900">
+                                          {e.title}
+                                        </p>
+                                        <Pill tone="neutral">
+                                          {formatMoney(e.amount)}
+                                        </Pill>
+                                      </div>
+                                      <p className="mt-1 text-sm text-slate-700">
+                                        Paid by: <UserName u={e.paidBy} />
+                                      </p>
+                                      <p className="text-xs text-slate-500">
+                                        {e.category || "general"} ·{" "}
+                                        {fmtDate(e.date)}
+                                      </p>
+                                    </div>
+
+                                    <Button
+                                      variant="ghost"
+                                      className="px-3 py-2"
+                                      onClick={() =>
+                                        toggleExpenseDetails(e._id)
+                                      }
+                                    >
+                                      {isOpen ? "Hide" : "Details"}
+                                    </Button>
+                                  </div>
+
+                                  {isOpen ? (
+                                    <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+                                      <div>
+                                        <span className="font-medium text-slate-900">
+                                          Split between:
+                                        </span>{" "}
+                                        {Array.isArray(e.splitBetween) &&
+                                        e.splitBetween.length ? (
+                                          <div className="mt-2 flex flex-wrap gap-2">
+                                            {e.splitBetween.map((m) => (
+                                              <span
+                                                key={m._id}
+                                                className="rounded-full bg-white px-2.5 py-1 text-xs text-slate-700 ring-1 ring-slate-200"
+                                                title={m.email}
+                                              >
+                                                {nameOrEmail(m)}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        ) : (
+                                          <span>-</span>
+                                        )}
+                                      </div>
+
+                                      {e.notes ? (
+                                        <div className="mt-2">
+                                          Notes: {e.notes}
+                                        </div>
+                                      ) : null}
+
+                                      {isCreator ? (
+                                        <div className="mt-3">
+                                          <Button
+                                            variant="outline"
+                                            className="px-3 py-2 text-rose-700 border-rose-200 hover:bg-rose-50"
+                                            onClick={() => deleteExpense(e._id)}
+                                          >
+                                            Delete expense
+                                          </Button>
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  ) : null}
+                                </CardBody>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {/* TASKS */}
+                  {overlay === "tasks" ? (
+                    <div className="space-y-3">
+                      <Card>
+                        <CardHeader
+                          title="Add task"
+                          subtitle="Create and optionally assign it"
+                        />
+                        <CardBody>
+                          <TaskForm
+                            members={flat.members}
+                            onCreate={createTask}
+                          />
+                        </CardBody>
+                      </Card>
+
+                      {sortedTasks.length === 0 ? (
+                        <Card>
+                          <CardBody>
+                            <p className="text-sm text-slate-700">
+                              No tasks yet
+                            </p>
+                          </CardBody>
+                        </Card>
+                      ) : (
+                        <div className="space-y-3">
+                          {sortedTasks.map((t) => {
+                            const assignedId =
+                              t.assignedTo?._id || t.assignedTo || null;
+                            const creatorId =
+                              t.createdBy?._id || t.createdBy || null;
+
+                            const isAssignedToMe =
+                              assignedId &&
+                              String(assignedId) === String(user?._id);
+                            const isCreator =
+                              creatorId &&
+                              String(creatorId) === String(user?._id);
+                            const isOpen = openTaskId === t._id;
+
+                            return (
+                              <Card key={t._id}>
+                                <CardBody>
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <p className="truncate text-sm font-semibold text-slate-900">
+                                          {t.title}
+                                        </p>
+                                        <Pill tone={statusTone(t.status)}>
+                                          {statusLabel(t.status)}
+                                        </Pill>
+                                      </div>
+                                      <p className="mt-1 text-sm text-slate-700">
+                                        Assigned to:{" "}
+                                        <UserName
+                                          u={t.assignedTo}
+                                          fallback="Unassigned"
+                                        />
+                                      </p>
+                                    </div>
+
+                                    <div className="flex flex-wrap items-center justify-end gap-2">
+                                      {!assignedId ? (
+                                        <Button
+                                          variant="outline"
+                                          className="px-3 py-2"
+                                          onClick={() => assignTaskToMe(t._id)}
+                                        >
+                                          Assign to me
+                                        </Button>
+                                      ) : null}
+
+                                      {isAssignedToMe &&
+                                      t.status === "pending" ? (
+                                        <Button
+                                          className="px-3 py-2"
+                                          onClick={() => startTask(t._id)}
+                                        >
+                                          Start
+                                        </Button>
+                                      ) : null}
+
+                                      {isAssignedToMe &&
+                                      t.status === "doing" ? (
+                                        <Button
+                                          className="px-3 py-2"
+                                          onClick={() => markTaskDone(t._id)}
+                                        >
+                                          Done
+                                        </Button>
+                                      ) : null}
+
+                                      <Button
+                                        variant="ghost"
+                                        className="px-3 py-2"
+                                        onClick={() => toggleTaskDetails(t._id)}
+                                      >
+                                        {isOpen ? "Hide" : "Details"}
+                                      </Button>
+                                    </div>
+                                  </div>
+
+                                  {isOpen ? (
+                                    <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
+                                      <div>
+                                        <span className="font-medium text-slate-900">
+                                          Created by:
+                                        </span>{" "}
+                                        <span title={t.createdBy?.email || ""}>
+                                          {t.createdBy
+                                            ? nameOrEmail(t.createdBy)
+                                            : "Unknown"}
+                                        </span>
+                                      </div>
+                                      <div className="mt-2">
+                                        <span className="font-medium text-slate-900">
+                                          Created at:
+                                        </span>{" "}
+                                        {t.createdAt
+                                          ? new Date(
+                                              t.createdAt
+                                            ).toLocaleString()
+                                          : "-"}
+                                      </div>
+                                      {t.description ? (
+                                        <div className="mt-2">
+                                          Notes: {t.description}
+                                        </div>
+                                      ) : null}
+
+                                      {isCreator ? (
+                                        <div className="mt-3">
+                                          <Button
+                                            variant="outline"
+                                            className="px-3 py-2 text-rose-700 border-rose-200 hover:bg-rose-50"
+                                            onClick={() => deleteTask(t._id)}
+                                          >
+                                            Delete task
+                                          </Button>
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  ) : null}
+                                </CardBody>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </ResponsiveLayout>
   );
 }
