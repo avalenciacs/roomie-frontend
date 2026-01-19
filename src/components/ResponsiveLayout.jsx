@@ -1,3 +1,4 @@
+// src/components/ResponsiveLayout.jsx
 import { Link } from "react-router-dom";
 
 export default function ResponsiveLayout({
@@ -12,7 +13,6 @@ export default function ResponsiveLayout({
 }) {
   return (
     <div className="w-full bg-slate-50 min-h-[calc(100vh-1px)]">
-
       {top ? <div className="w-full">{top}</div> : null}
 
       <div className="mx-auto w-full max-w-3xl px-4 pb-10">
@@ -21,15 +21,15 @@ export default function ResponsiveLayout({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-3">
-                 
-                 
-
                   {backTo ? (
                     <Link
                       to={backTo}
-                      className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900"
+                      aria-label="Back"
+                      className="inline-flex items-center justify-center h-10 w-10 rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                     >
-                      ← Back
+                      <span aria-hidden className="text-lg leading-none">
+                        ←
+                      </span>
                     </Link>
                   ) : null}
                 </div>

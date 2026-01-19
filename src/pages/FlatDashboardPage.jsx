@@ -1,8 +1,9 @@
+// src/pages/FlatDashboardPage.jsx
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import api from "../api/api";
 import ResponsiveLayout from "../components/ResponsiveLayout";
-import { Card, CardBody } from "../components/ui/ui";
+import { Card, CardBody, Button } from "../components/ui/ui";
 import FlatDashboard from "../components/FlatDashboard";
 import FlatTopNav from "../components/FlatTopNav";
 
@@ -52,7 +53,10 @@ export default function FlatDashboardPage() {
   if (loading) {
     return (
       <ResponsiveLayout top={<FlatTopNav flatId={flatId} />} hideHeader>
-        <div className="h-56 rounded-2xl bg-slate-200/60 animate-pulse" />
+        <div className="grid grid-cols-1 gap-4">
+          <div className="h-10 w-40 mx-auto rounded-xl bg-slate-200/60 animate-pulse" />
+          <div className="h-56 rounded-2xl bg-slate-200/60 animate-pulse" />
+        </div>
       </ResponsiveLayout>
     );
   }
@@ -68,6 +72,11 @@ export default function FlatDashboardPage() {
             {pageError ? (
               <p className="mt-1 text-sm text-slate-600">{pageError}</p>
             ) : null}
+            <div className="mt-4">
+              <Link to="/flats">
+                <Button>Back to My Flats</Button>
+              </Link>
+            </div>
           </CardBody>
         </Card>
       </ResponsiveLayout>
@@ -75,22 +84,26 @@ export default function FlatDashboardPage() {
   }
 
   return (
-    <ResponsiveLayout top={<FlatTopNav flatId={flatId} />} hideHeader>
-      <div className="space-y-4">
-        <div className="text-center">
-          <p className="text-sm font-semibold text-slate-900">Dashboard</p>
-          <p className="text-xs text-slate-500">Flat · {flat.name}</p>
-        </div>
+    <ResponsiveLayout
+      top={
+        <FlatTopNav
+          flatId={flatId}
+          title={flat.name}
+          subtitle={flat.description || "Shared flat workspace"}
+        />
+      }
+      hideHeader
+    >
+      {pageError ? (
+        <Card className="mt-4">
+          <CardBody>
+            <p className="text-sm font-semibold text-slate-900">Heads up</p>
+            <p className="mt-1 text-sm text-slate-600">{pageError}</p>
+          </CardBody>
+        </Card>
+      ) : null}
 
-        {pageError ? (
-          <Card>
-            <CardBody>
-              <p className="text-sm font-semibold text-slate-900">Heads up</p>
-              <p className="mt-1 text-sm text-slate-600">{pageError}</p>
-            </CardBody>
-          </Card>
-        ) : null}
-
+      <div className="mt-4">
         <FlatDashboard expenses={expenses} />
       </div>
     </ResponsiveLayout>
