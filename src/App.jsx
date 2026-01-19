@@ -10,6 +10,7 @@ import FlatDetails from "./pages/FlatDetails";
 import FlatBalance from "./pages/FlatBalance";
 import FlatDashboardPage from "./pages/FlatDashboardPage";
 import CreateFlat from "./pages/CreateFlat";
+import FlatEdit from "./pages/FlatEdit";
 
 function App() {
   return (
@@ -67,6 +68,9 @@ function App() {
             </IsPrivate>
           }
         />
+
+
+        <Route path="/flats/:flatId/edit" element={<FlatEdit />} />
       </Routes>
     </div>
   );

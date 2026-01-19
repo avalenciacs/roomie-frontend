@@ -1,4 +1,3 @@
-// src/pages/FlatDetails.jsx
 import {
   useEffect,
   useMemo,
@@ -7,17 +6,25 @@ import {
   useCallback,
   useRef,
 } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "../api/api";
 import { AuthContext } from "../context/auth.context";
 import ExpenseForm from "../components/ExpenseForm";
 import TaskForm from "../components/TaskForm";
 import ResponsiveLayout from "../components/ResponsiveLayout";
 import FlatTopNav from "../components/FlatTopNav";
-import { Card, CardBody, CardHeader, Button, Input, Pill } from "../components/ui/ui";
+import {
+  Card,
+  CardBody,
+  CardHeader,
+  Button,
+  Input,
+  Pill,
+} from "../components/ui/ui";
 
 function FlatDetails() {
   const { flatId } = useParams();
+  const navigate = useNavigate();
   const { user } = useContext(AuthContext);
 
   const [flat, setFlat] = useState(null);
@@ -31,8 +38,16 @@ function FlatDetails() {
   const [openTaskId, setOpenTaskId] = useState(null);
   const [openExpenseId, setOpenExpenseId] = useState(null);
 
-  const [overlay, setOverlay] = useState(""); // "expenses" | "members" | "tasks" | ""
+  const [overlay, setOverlay] = useState(""); 
   const scrollYRef = useRef(0);
+
+  // Owner settings overlay (edit/delete)
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Delete confirm modal
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteText, setDeleteText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const token = localStorage.getItem("authToken");
 
@@ -124,7 +139,6 @@ function FlatDetails() {
     document.body.style.overflow = "hidden";
     setOverlay(id);
 
-    // opcional: cerrar “details” al cambiar de overlay
     setOpenExpenseId(null);
     setOpenTaskId(null);
   };
@@ -135,13 +149,31 @@ function FlatDetails() {
     requestAnimationFrame(() => window.scrollTo(0, scrollYRef.current || 0));
   };
 
+  // Settings sheet helpers
+  const openSettings = () => {
+    scrollYRef.current = window.scrollY || 0;
+    document.body.style.overflow = "hidden";
+    setSettingsOpen(true);
+  };
+
+  const closeSettings = () => {
+    document.body.style.overflow = "";
+    setSettingsOpen(false);
+    requestAnimationFrame(() => window.scrollTo(0, scrollYRef.current || 0));
+  };
+
+ 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === "Escape" && overlay) closeOverlay();
+      if (e.key !== "Escape") return;
+      if (deleteOpen) setDeleteOpen(false);
+      else if (settingsOpen) closeSettings();
+      else if (overlay) closeOverlay();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [overlay]);
+   
+  }, [overlay, settingsOpen, deleteOpen]);
 
   // ───────── MEMBERS ─────────
   const handleAddMember = async (e) => {
@@ -283,6 +315,42 @@ function FlatDetails() {
   const toggleExpenseDetails = (id) =>
     setOpenExpenseId((prev) => (prev === id ? null : id));
 
+  // ───────── OWNER: EDIT / DELETE ─────────
+  const goToEdit = () => {
+    closeSettings();
+    navigate(`/flats/${flatId}/edit`);
+  };
+
+  const openDelete = () => {
+    setDeleteText("");
+    setDeleteOpen(true);
+  };
+
+  const closeDelete = () => {
+    setDeleteOpen(false);
+    setDeleteText("");
+  };
+
+  const handleDeleteFlat = async () => {
+    if (!isOwner) return;
+    const mustType = (flat?.name || "").trim();
+    if (mustType && deleteText.trim() !== mustType) return;
+
+    setIsDeleting(true);
+    try {
+      await api.delete(`/api/flats/${flatId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      closeDelete();
+      closeSettings();
+      navigate("/"); 
+    } catch (e) {
+      alert(e?.response?.data?.message || "Error deleting flat");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const SectionCard = ({ title, subtitle, count, onClick }) => (
     <button type="button" onClick={onClick} className="w-full text-left">
       <Card className="transition hover:shadow-sm">
@@ -306,13 +374,7 @@ function FlatDetails() {
   if (isLoading) {
     return (
       <ResponsiveLayout
-        top={
-          <FlatTopNav
-            flatId={flatId}
-            title="Loading…"
-            subtitle=""
-          />
-        }
+        top={<FlatTopNav flatId={flatId} title="Loading…" subtitle="" />}
         hideHeader
       >
         <div className="grid grid-cols-1 gap-4">
@@ -337,7 +399,7 @@ function FlatDetails() {
               <p className="mt-1 text-sm text-slate-600">{pageError}</p>
             ) : null}
             <div className="mt-4">
-              <Link to="/flats">
+              <Link to="/">
                 <Button>Back to My Flats</Button>
               </Link>
             </div>
@@ -346,6 +408,8 @@ function FlatDetails() {
       </ResponsiveLayout>
     );
   }
+
+  const flatNameForDelete = (flat?.name || "").trim();
 
   return (
     <ResponsiveLayout
@@ -366,8 +430,6 @@ function FlatDetails() {
           </CardBody>
         </Card>
       ) : null}
-
-
 
       {/* Launcher cards */}
       <div className="mt-4 space-y-3">
@@ -393,7 +455,142 @@ function FlatDetails() {
         />
       </div>
 
-      {/* OVERLAY */}
+      {/* OWNER SETTINGS (inline, integrated at bottom) */}
+      {isOwner ? (
+        <Card className="mt-6 border-slate-200">
+          <CardHeader
+            title="Settings"
+            subtitle="Only visible to the owner"
+          />
+          <CardBody className="space-y-3">
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={openSettings}
+            >
+              Open settings
+            </Button>
+          </CardBody>
+        </Card>
+      ) : null}
+
+      {/* SETTINGS SHEET */}
+      {settingsOpen ? (
+        <div className="fixed inset-0 z-50">
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={closeSettings}
+            className="absolute inset-0 bg-black/30"
+          />
+
+          <div className="absolute inset-x-0 bottom-0 max-h-[85vh]">
+            <div className="mx-auto w-full max-w-3xl px-4 pb-4">
+              <div className="rounded-3xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+                <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900">
+                      Settings
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Owner actions for this flat
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="px-3 py-2"
+                    onClick={closeSettings}
+                  >
+                    Close
+                  </Button>
+                </div>
+
+                <div className="px-4 py-4 space-y-3">
+                  <Button className="w-full" onClick={goToEdit}>
+                    Edit flat
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="w-full text-rose-700 border-rose-200 hover:bg-rose-50"
+                    onClick={openDelete}
+                  >
+                    Delete flat
+                  </Button>
+
+                  <p className="text-xs text-slate-500">
+                    Deleting a flat removes its members, tasks and expenses.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* DELETE MODAL */}
+          {deleteOpen ? (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
+              <button
+                type="button"
+                aria-label="Close delete modal"
+                onClick={closeDelete}
+                className="absolute inset-0 bg-black/40"
+              />
+              <div className="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+                <div className="border-b border-slate-200 px-5 py-4">
+                  <p className="text-sm font-semibold text-slate-900">
+                    Delete “{flat?.name}”?
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    This action cannot be undone.
+                    {flatNameForDelete
+                      ? ` Type the flat name to confirm.`
+                      : ""}
+                  </p>
+                </div>
+
+                <div className="px-5 py-4 space-y-3">
+                  {flatNameForDelete ? (
+                    <div>
+                      <p className="text-xs font-medium text-slate-700">
+                        Type: <span className="font-semibold">{flatNameForDelete}</span>
+                      </p>
+                      <Input
+                        value={deleteText}
+                        onChange={(e) => setDeleteText(e.target.value)}
+                        placeholder={flatNameForDelete}
+                      />
+                    </div>
+                  ) : null}
+
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      className="px-4 py-2"
+                      onClick={closeDelete}
+                      disabled={isDeleting}
+                    >
+                      Cancel
+                    </Button>
+
+                    <Button
+                      className="px-4 py-2 text-white bg-rose-600 hover:bg-rose-700"
+                      onClick={handleDeleteFlat}
+                      disabled={
+                        isDeleting ||
+                        (flatNameForDelete && deleteText.trim() !== flatNameForDelete)
+                      }
+                    >
+                      {isDeleting ? "Deleting…" : "Delete"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* OVERLAY (Members/Expenses/Tasks) */}
       {overlay ? (
         <div className="fixed inset-0 z-50">
           <button
@@ -527,9 +724,11 @@ function FlatDetails() {
                       ) : (
                         <div className="space-y-3">
                           {expenses.map((e) => {
-                            const creatorId = e.createdBy?._id || e.createdBy || null;
+                            const creatorId =
+                              e.createdBy?._id || e.createdBy || null;
                             const isCreator =
-                              creatorId && String(creatorId) === String(user?._id);
+                              creatorId &&
+                              String(creatorId) === String(user?._id);
                             const isOpen = openExpenseId === e._id;
 
                             return (
@@ -541,7 +740,9 @@ function FlatDetails() {
                                         <p className="truncate text-sm font-semibold text-slate-900">
                                           {e.title}
                                         </p>
-                                        <Pill tone="neutral">{formatMoney(e.amount)}</Pill>
+                                        <Pill tone="neutral">
+                                          {formatMoney(e.amount)}
+                                        </Pill>
                                       </div>
                                       <p className="mt-1 text-sm text-slate-700">
                                         Paid by: <UserName u={e.paidBy} />
@@ -554,7 +755,9 @@ function FlatDetails() {
                                     <Button
                                       variant="ghost"
                                       className="px-3 py-2"
-                                      onClick={() => toggleExpenseDetails(e._id)}
+                                      onClick={() =>
+                                        toggleExpenseDetails(e._id)
+                                      }
                                     >
                                       {isOpen ? "Hide" : "Details"}
                                     </Button>
@@ -583,7 +786,11 @@ function FlatDetails() {
                                         )}
                                       </div>
 
-                                      {e.notes ? <div className="mt-2">Notes: {e.notes}</div> : null}
+                                      {e.notes ? (
+                                        <div className="mt-2">
+                                          Notes: {e.notes}
+                                        </div>
+                                      ) : null}
 
                                       {isCreator ? (
                                         <div className="mt-3">
@@ -616,26 +823,35 @@ function FlatDetails() {
                           subtitle="Create and optionally assign it"
                         />
                         <CardBody>
-                          <TaskForm members={flat.members} onCreate={createTask} />
+                          <TaskForm
+                            members={flat.members}
+                            onCreate={createTask}
+                          />
                         </CardBody>
                       </Card>
 
                       {sortedTasks.length === 0 ? (
                         <Card>
                           <CardBody>
-                            <p className="text-sm text-slate-700">No tasks yet</p>
+                            <p className="text-sm text-slate-700">
+                              No tasks yet
+                            </p>
                           </CardBody>
                         </Card>
                       ) : (
                         <div className="space-y-3">
                           {sortedTasks.map((t) => {
-                            const assignedId = t.assignedTo?._id || t.assignedTo || null;
-                            const creatorId = t.createdBy?._id || t.createdBy || null;
+                            const assignedId =
+                              t.assignedTo?._id || t.assignedTo || null;
+                            const creatorId =
+                              t.createdBy?._id || t.createdBy || null;
 
                             const isAssignedToMe =
-                              assignedId && String(assignedId) === String(user?._id);
+                              assignedId &&
+                              String(assignedId) === String(user?._id);
                             const isCreator =
-                              creatorId && String(creatorId) === String(user?._id);
+                              creatorId &&
+                              String(creatorId) === String(user?._id);
                             const isOpen = openTaskId === t._id;
 
                             return (
@@ -654,7 +870,9 @@ function FlatDetails() {
                                       <p className="mt-1 text-sm text-slate-700">
                                         Assigned to:{" "}
                                         <span className="font-medium text-slate-900">
-                                          {t.assignedTo ? nameOrEmail(t.assignedTo) : "Unassigned"}
+                                          {t.assignedTo
+                                            ? nameOrEmail(t.assignedTo)
+                                            : "Unassigned"}
                                         </span>
                                       </p>
                                     </div>
@@ -670,7 +888,8 @@ function FlatDetails() {
                                         </Button>
                                       ) : null}
 
-                                      {isAssignedToMe && t.status === "pending" ? (
+                                      {isAssignedToMe &&
+                                      t.status === "pending" ? (
                                         <Button
                                           className="px-3 py-2"
                                           onClick={() => startTask(t._id)}
@@ -705,19 +924,26 @@ function FlatDetails() {
                                           Created by:
                                         </span>{" "}
                                         <span title={t.createdBy?.email || ""}>
-                                          {t.createdBy ? nameOrEmail(t.createdBy) : "Unknown"}
+                                          {t.createdBy
+                                            ? nameOrEmail(t.createdBy)
+                                            : "Unknown"}
                                         </span>
                                       </div>
-
                                       <div className="mt-2">
                                         <span className="font-medium text-slate-900">
                                           Created at:
                                         </span>{" "}
-                                        {t.createdAt ? new Date(t.createdAt).toLocaleString() : "-"}
+                                        {t.createdAt
+                                          ? new Date(
+                                              t.createdAt
+                                            ).toLocaleString()
+                                          : "-"}
                                       </div>
 
                                       {t.description ? (
-                                        <div className="mt-2">Notes: {t.description}</div>
+                                        <div className="mt-2">
+                                          Notes: {t.description}
+                                        </div>
                                       ) : null}
 
                                       {isCreator ? (

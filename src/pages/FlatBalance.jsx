@@ -17,6 +17,10 @@ function FlatBalance() {
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState("");
 
+  // UI toggles (to reduce cognitive load)
+  const [showDetails, setShowDetails] = useState(false); // toggles "You owe/receive" lists
+  const [showPerPerson, setShowPerPerson] = useState(false); // collapses per-person by default
+
   const myEmail = useMemo(() => user?.email || null, [user]);
 
   const formatMoney = (n) => `${Number(n || 0).toFixed(2)} €`;
@@ -112,13 +116,13 @@ function FlatBalance() {
   const settlements = Array.isArray(data.settlements) ? data.settlements : [];
 
   const youOwe = myEmail ? settlements.filter((s) => s?.from === myEmail) : [];
-  const youReceive = myEmail
-    ? settlements.filter((s) => s?.to === myEmail)
-    : [];
+  const youReceive = myEmail ? settlements.filter((s) => s?.to === myEmail) : [];
 
   const sum = (arr) => arr.reduce((acc, x) => acc + Number(x?.amount || 0), 0);
   const oweTotal = sum(youOwe);
   const receiveTotal = sum(youReceive);
+
+  const hasAny = totals.length > 0 || settlements.length > 0;
 
   return (
     <ResponsiveLayout
@@ -140,12 +144,33 @@ function FlatBalance() {
         </Card>
       ) : null}
 
+      {/* Quick actions row */}
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+        <Button
+          variant="outline"
+          className="px-3 py-2"
+          onClick={() => setShowDetails((v) => !v)}
+          disabled={!hasAny}
+        >
+          {showDetails ? "Hide details" : "Show details"}
+        </Button>
+
+        <Button
+          variant="outline"
+          className="px-3 py-2"
+          onClick={() => setShowPerPerson((v) => !v)}
+          disabled={totals.length === 0}
+        >
+          {showPerPerson ? "Hide per person" : "View per person"}
+        </Button>
+      </div>
+
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-        {/* You owe */}
+        {/* YOU OWE (summary first, details optional) */}
         <Card>
           <CardHeader
             title="You owe"
-            subtitle={youOwe.length ? "Payments you should make" : "You're all good"}
+            subtitle={youOwe.length ? "What you should pay" : "You're all good"}
             right={
               <Pill tone={youOwe.length ? "neg" : "neutral"}>
                 {youOwe.length ? formatMoney(oweTotal) : "OK"}
@@ -159,7 +184,7 @@ function FlatBalance() {
               </p>
             ) : youOwe.length === 0 ? (
               <p className="text-sm text-slate-700">Nothing 🎉</p>
-            ) : (
+            ) : showDetails ? (
               <ul className="space-y-2">
                 {youOwe.map((s, i) => (
                   <li
@@ -185,15 +210,19 @@ function FlatBalance() {
                   </li>
                 ))}
               </ul>
+            ) : (
+              <p className="text-sm text-slate-700">
+                {youOwe.length} {youOwe.length === 1 ? "payment" : "payments"} pending.
+              </p>
             )}
           </CardBody>
         </Card>
 
-        {/* You receive */}
+        {/* YOU RECEIVE */}
         <Card>
           <CardHeader
             title="You receive"
-            subtitle={youReceive.length ? "Payments you should receive" : "No incoming payments"}
+            subtitle={youReceive.length ? "What you should get" : "No incoming payments"}
             right={
               <Pill tone={youReceive.length ? "pos" : "neutral"}>
                 {youReceive.length ? formatMoney(receiveTotal) : "OK"}
@@ -207,7 +236,7 @@ function FlatBalance() {
               </p>
             ) : youReceive.length === 0 ? (
               <p className="text-sm text-slate-700">Nothing</p>
-            ) : (
+            ) : showDetails ? (
               <ul className="space-y-2">
                 {youReceive.map((s, i) => (
                   <li
@@ -233,56 +262,71 @@ function FlatBalance() {
                   </li>
                 ))}
               </ul>
-            )}
-          </CardBody>
-        </Card>
-
-        {/* Per person */}
-        <Card className="md:col-span-2">
-          <CardHeader
-            title="Balance per person"
-            subtitle="Positive receives · Negative owes"
-          />
-          <CardBody>
-            {totals.length === 0 ? (
-              <p className="text-sm text-slate-700">No data yet</p>
             ) : (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {totals.map((t, idx) => {
-                  const net = Number(t?.net || 0);
-                  const tone = net > 0 ? "pos" : net < 0 ? "neg" : "neutral";
-                  return (
-                    <div
-                      key={t?.userId || idx}
-                      className="rounded-xl border border-slate-200 bg-white px-3 py-3"
-                      title={t?.email}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-900">
-                            {label(t?.email)}
-                          </p>
-                          {secondaryEmail(t?.email) ? (
-                            <p className="truncate text-xs text-slate-500">
-                              {secondaryEmail(t?.email)}
-                            </p>
-                          ) : null}
-                        </div>
-                        <Pill tone={tone}>{formatSigned(net)}</Pill>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <p className="text-sm text-slate-700">
+                {youReceive.length} {youReceive.length === 1 ? "incoming payment" : "incoming payments"}.
+              </p>
             )}
           </CardBody>
         </Card>
 
-        {/* Settlements */}
+        {/* PER PERSON (collapsible by default) */}
+        {showPerPerson ? (
+          <Card className="md:col-span-2">
+            <CardHeader
+              title="Balance per person"
+              subtitle="Green receives · Red owes"
+              right={
+                <Button
+                  variant="ghost"
+                  className="px-3 py-2"
+                  onClick={() => setShowPerPerson(false)}
+                >
+                  Hide
+                </Button>
+              }
+            />
+            <CardBody>
+              {totals.length === 0 ? (
+                <p className="text-sm text-slate-700">No data yet</p>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {totals.map((t, idx) => {
+                    const net = Number(t?.net || 0);
+                    const tone = net > 0 ? "pos" : net < 0 ? "neg" : "neutral";
+                    return (
+                      <div
+                        key={t?.userId || idx}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-3"
+                        title={t?.email}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-900">
+                              {label(t?.email)}
+                            </p>
+                            {secondaryEmail(t?.email) ? (
+                              <p className="truncate text-xs text-slate-500">
+                                {secondaryEmail(t?.email)}
+                              </p>
+                            ) : null}
+                          </div>
+                          <Pill tone={tone}>{formatSigned(net)}</Pill>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardBody>
+          </Card>
+        ) : null}
+
+        {/* SETTLEMENTS (make it more explicit + clearer language) */}
         <Card className="md:col-span-2">
           <CardHeader
-            title="Settlements"
-            subtitle="Suggested payments to settle up"
+            title="Suggested payments"
+            subtitle="To settle up, these transfers are needed"
           />
           <CardBody>
             {settlements.length === 0 ? (
@@ -298,7 +342,7 @@ function FlatBalance() {
                       <span className="font-semibold" title={s?.from}>
                         {label(s?.from)}
                       </span>{" "}
-                      <span className="text-slate-500">owes</span>{" "}
+                      <span className="text-slate-500">pays</span>{" "}
                       <span className="font-semibold" title={s?.to}>
                         {label(s?.to)}
                       </span>
@@ -310,6 +354,9 @@ function FlatBalance() {
                 ))}
               </ul>
             )}
+            <p className="mt-3 text-xs text-slate-500">
+              Tip: these are suggested transfers. You can pay in any way as long as totals match.
+            </p>
           </CardBody>
         </Card>
       </div>
