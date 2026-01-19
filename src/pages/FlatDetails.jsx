@@ -367,35 +367,7 @@ function FlatDetails() {
         </Card>
       ) : null}
 
-      {/* Stats row */}
-      <div className="mt-4 hidden sm:grid grid-cols-3 gap-3">
-        <Card>
-          <CardBody>
-            <p className="text-[11px] text-slate-500">Members</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900">
-              {flat.members?.length || 0}
-            </p>
-          </CardBody>
-        </Card>
 
-        <Card>
-          <CardBody>
-            <p className="text-[11px] text-slate-500">Expenses</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900">
-              {expenses.length}
-            </p>
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardBody>
-            <p className="text-[11px] text-slate-500">Open</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900">
-              {tasks.filter((t) => t.status !== "done").length}
-            </p>
-          </CardBody>
-        </Card>
-      </div>
 
       {/* Launcher cards */}
       <div className="mt-4 space-y-3">
