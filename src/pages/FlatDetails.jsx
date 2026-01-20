@@ -9,6 +9,7 @@ import {
 import { useParams, Link, useNavigate } from "react-router-dom";
 import api from "../api/api";
 import { AuthContext } from "../context/auth.context";
+import { ToastContext } from "../context/toast.context";
 import ExpenseForm from "../components/ExpenseForm";
 import TaskForm from "../components/TaskForm";
 import ResponsiveLayout from "../components/ResponsiveLayout";
@@ -26,6 +27,7 @@ function FlatDetails() {
   const { flatId } = useParams();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+  const { success, error: toastError } = useContext(ToastContext);
 
   const [flat, setFlat] = useState(null);
   const [expenses, setExpenses] = useState([]);
@@ -53,7 +55,7 @@ function FlatDetails() {
   const [inviteMsg, setInviteMsg] = useState("");
   const [isInviting, setIsInviting] = useState(false);
 
-  //  Pending invites (UI only)
+  // Pending invites (UI only)
   const [pendingInvites, setPendingInvites] = useState([]);
   const [invitesError, setInvitesError] = useState("");
   const [invitesLoading, setInvitesLoading] = useState(false);
@@ -159,6 +161,7 @@ function FlatDetails() {
           err?.response?.data?.message ||
           "Something went wrong while loading this flat.";
         if (alive) setPageError(msg);
+        toastError(msg);
       } finally {
         if (alive) setIsLoading(false);
       }
@@ -168,7 +171,7 @@ function FlatDetails() {
     return () => {
       alive = false;
     };
-  }, [getFlat, getExpenses, getTasks]);
+  }, [getFlat, getExpenses, getTasks, toastError]);
 
   // ───────── OVERLAY ─────────
   const openOverlay = (id) => {
@@ -214,7 +217,6 @@ function FlatDetails() {
   }, [overlay, settingsOpen, deleteOpen]);
 
   // ───────── MEMBERS ─────────
-  //  Send invitation email via /api/invitations
   const handleAddMember = async (e) => {
     e.preventDefault();
     if (!isOwner) return;
@@ -234,17 +236,17 @@ function FlatDetails() {
 
       setEmail("");
       setInviteMsg(`Invitation sent to ${cleanEmail}`);
-      // Refresh pending invites list
+      success(`Invitation sent to ${cleanEmail}`);
       await getPendingInvites();
-    } catch (error) {
+    } catch (err) {
       setInviteMsg("");
-      alert(error?.response?.data?.message || "Error sending invitation");
+      const msg = err?.response?.data?.message || "Error sending invitation";
+      toastError(msg);
     } finally {
       setIsInviting(false);
     }
   };
 
-  //  revoke pending invitation (owner)
   const revokeInvite = async (invitationId) => {
     if (!isOwner) return;
     const ok = window.confirm("Revoke this invitation?");
@@ -256,9 +258,11 @@ function FlatDetails() {
         {},
         { headers: { Authorization: `Bearer ${token}` } },
       );
+      success("Invitation revoked");
       await getPendingInvites();
-    } catch (e) {
-      alert(e?.response?.data?.message || "Error revoking invitation");
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Error revoking invitation";
+      toastError(msg);
     }
   };
 
@@ -270,9 +274,11 @@ function FlatDetails() {
       await api.delete(`/api/flats/${flatId}/members/${memberId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      success("Member removed");
       await getFlat();
-    } catch (error) {
-      alert(error?.response?.data?.message || "Error removing member");
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Error removing member";
+      toastError(msg);
     }
   };
 
@@ -282,9 +288,11 @@ function FlatDetails() {
       await api.post(`/api/flats/${flatId}/expenses`, expenseData, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      success("Expense created");
       await getExpenses();
-    } catch (error) {
-      alert(error?.response?.data?.message || "Error creating expense");
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Error creating expense";
+      toastError(msg);
     }
   };
 
@@ -297,9 +305,11 @@ function FlatDetails() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setOpenExpenseId((prev) => (prev === expenseId ? null : prev));
+      success("Expense deleted");
       await getExpenses();
-    } catch (error) {
-      alert(error?.response?.data?.message || "Error deleting expense");
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Error deleting expense";
+      toastError(msg);
     }
   };
 
@@ -311,9 +321,11 @@ function FlatDetails() {
         { ...taskData, status: "pending" },
         { headers: { Authorization: `Bearer ${token}` } },
       );
+      success("Task created");
       await getTasks();
-    } catch (error) {
-      alert(error?.response?.data?.message || "Error creating task");
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Error creating task";
+      toastError(msg);
     }
   };
 
@@ -324,9 +336,11 @@ function FlatDetails() {
         { assignedTo: user._id },
         { headers: { Authorization: `Bearer ${token}` } },
       );
+      success("Task assigned to you");
       await getTasks();
-    } catch (error) {
-      alert(error?.response?.data?.message || "Error assigning task");
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Error assigning task";
+      toastError(msg);
     }
   };
 
@@ -337,9 +351,11 @@ function FlatDetails() {
         { status: "doing" },
         { headers: { Authorization: `Bearer ${token}` } },
       );
+      success("Task started");
       await getTasks();
-    } catch (error) {
-      alert(error?.response?.data?.message || "Error starting task");
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Error starting task";
+      toastError(msg);
     }
   };
 
@@ -350,9 +366,11 @@ function FlatDetails() {
         { status: "done" },
         { headers: { Authorization: `Bearer ${token}` } },
       );
+      success("Task completed");
       await getTasks();
-    } catch (error) {
-      alert(error?.response?.data?.message || "Error marking task done");
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Error marking task done";
+      toastError(msg);
     }
   };
 
@@ -365,9 +383,11 @@ function FlatDetails() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setOpenTaskId((prev) => (prev === taskId ? null : prev));
+      success("Task deleted");
       await getTasks();
-    } catch (error) {
-      alert(error?.response?.data?.message || "Error deleting task");
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Error deleting task";
+      toastError(msg);
     }
   };
 
@@ -412,11 +432,13 @@ function FlatDetails() {
       await api.delete(`/api/flats/${flatId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      success("Flat deleted");
       closeDelete();
       closeSettings();
       navigate("/");
-    } catch (e) {
-      alert(e?.response?.data?.message || "Error deleting flat");
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Error deleting flat";
+      toastError(msg);
     } finally {
       setIsDeleting(false);
     }
@@ -745,7 +767,7 @@ function FlatDetails() {
                             ))}
                           </ul>
 
-                          {/*  Pending invitations section */}
+                          {/* Pending invitations */}
                           {isOwner ? (
                             <div className="mt-4">
                               <div className="flex items-center justify-between">
@@ -1072,25 +1094,6 @@ function FlatDetails() {
                                         </Button>
                                       ) : null}
 
-                                      {t.imageUrl ? (
-                                        <div className="mt-3">
-                                          <p className="text-xs font-medium text-slate-700 mb-2">
-                                            Photo
-                                          </p>
-                                          <a
-                                            href={t.imageUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                          >
-                                            <img
-                                              src={t.imageUrl}
-                                              alt="Task"
-                                              className="w-full max-h-72 object-cover rounded-xl ring-1 ring-slate-200"
-                                            />
-                                          </a>
-                                        </div>
-                                      ) : null}
-
                                       <Button
                                         variant="ghost"
                                         className="px-3 py-2"
@@ -1128,6 +1131,25 @@ function FlatDetails() {
                                       {t.description ? (
                                         <div className="mt-2">
                                           Notes: {t.description}
+                                        </div>
+                                      ) : null}
+
+                                      {t.imageUrl ? (
+                                        <div className="mt-3">
+                                          <p className="text-xs font-medium text-slate-700 mb-2">
+                                            Photo
+                                          </p>
+                                          <a
+                                            href={t.imageUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                          >
+                                            <img
+                                              src={t.imageUrl}
+                                              alt="Task"
+                                              className="w-full max-h-72 object-cover rounded-xl ring-1 ring-slate-200"
+                                            />
+                                          </a>
                                         </div>
                                       ) : null}
 

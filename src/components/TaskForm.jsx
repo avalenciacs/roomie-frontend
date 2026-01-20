@@ -1,9 +1,12 @@
 import { useMemo, useState } from "react";
 import { uploadImage } from "../api/uploads";
-import { Button, Card, CardBody, CardHeader, Input, Pill } from "./ui/ui";
 import FilePicker from "./FilePicker";
+import { useToast } from "../context/toast.context";
+import { Button, Card, CardBody, CardHeader, Input, Pill } from "./ui/ui";
 
 function TaskForm({ members = [], onCreate }) {
+  const toast = useToast();
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
@@ -30,15 +33,17 @@ function TaskForm({ members = [], onCreate }) {
         title: title.trim(),
         description: description.trim(),
         assignedTo: assignedTo || null,
-        imageUrl, // "" if no photo
+        imageUrl, // "" si no hay
       });
+
+      toast.success("Task created");
 
       setTitle("");
       setDescription("");
       setAssignedTo("");
       setFile(null);
     } catch (err) {
-      alert(err?.response?.data?.message || "Error creating task");
+      toast.error(err?.response?.data?.message || "Error creating task");
     } finally {
       setIsUploading(false);
     }
@@ -93,26 +98,21 @@ function TaskForm({ members = [], onCreate }) {
                   </option>
                 ))}
               </select>
-
               <p className="mt-1 text-xs text-slate-500">
                 If unassigned, someone can claim it later.
               </p>
             </div>
 
-            {/* ✅ English file UI */}
             <FilePicker
-              file={file}
-              onChange={setFile}
               label="Photo (optional)"
+              helper="Max 5MB. JPG/PNG/WebP."
+              accept="image/*"
+              value={file}
+              onChange={setFile}
             />
           </div>
 
-          {/* ✅ full-width green button like Expenses */}
-          <Button
-            type="submit"
-            className="w-full bg-emerald-600 hover:bg-emerald-700"
-            disabled={isUploading}
-          >
+          <Button type="submit" className="w-full" disabled={isUploading}>
             {isUploading ? "Uploading..." : "Create task"}
           </Button>
         </form>

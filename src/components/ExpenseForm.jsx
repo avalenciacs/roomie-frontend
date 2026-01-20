@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { uploadImage } from "../api/uploads";
 import FilePicker from "./FilePicker";
+import { useToast } from "../context/toast.context";
 
 const CATEGORY_OPTIONS = [
   { value: "general", label: "General" },
@@ -14,6 +15,8 @@ const CATEGORY_OPTIONS = [
 ];
 
 export default function ExpenseForm({ members = [], onCreate }) {
+  const toast = useToast();
+
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [paidBy, setPaidBy] = useState(members?.[0]?._id || "");
@@ -31,7 +34,7 @@ export default function ExpenseForm({ members = [], onCreate }) {
 
   const toggleSplit = (id) => {
     setSplitBetween((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
@@ -51,14 +54,16 @@ export default function ExpenseForm({ members = [], onCreate }) {
         title: title.trim(),
         amount: Number(amount),
         paidBy,
-        splitBetween, // if empty, backend splits between all members
+        splitBetween,
         date,
         category,
         notes: notes.trim(),
-        imageUrl, // "" if no photo
+        imageUrl,
       };
 
       await onCreate(payload);
+
+      toast.success("Expense created");
 
       // reset
       setTitle("");
@@ -70,7 +75,7 @@ export default function ExpenseForm({ members = [], onCreate }) {
       setNotes("");
       setFile(null);
     } catch (err) {
-      alert(err?.response?.data?.message || "Error creating expense");
+      toast.error(err?.response?.data?.message || "Error creating expense");
     } finally {
       setIsUploading(false);
     }
@@ -106,7 +111,7 @@ export default function ExpenseForm({ members = [], onCreate }) {
         <div>
           <label className="text-sm font-medium text-slate-700">Paid by</label>
           <select
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 bg-white"
             value={paidBy}
             onChange={(e) => setPaidBy(e.target.value)}
             required
@@ -125,27 +130,24 @@ export default function ExpenseForm({ members = [], onCreate }) {
         <label className="text-sm font-medium text-slate-700">
           Split between (optional)
         </label>
-
         <div className="mt-2 flex flex-wrap gap-2">
           {members.map((m) => (
             <button
               key={m._id}
               type="button"
               onClick={() => toggleSplit(m._id)}
-              className={[
-                "rounded-full px-3 py-1 text-sm ring-1 transition",
+              className={`rounded-full px-3 py-1 text-sm ring-1 ${
                 splitBetween.includes(m._id)
                   ? "bg-slate-900 text-white ring-slate-900"
-                  : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50",
-              ].join(" ")}
+                  : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"
+              }`}
             >
               {m.name || m.email}
             </button>
           ))}
         </div>
-
         <p className="mt-1 text-xs text-slate-500">
-          If empty, the backend will split between all members.
+          If empty, backend will split between all members.
         </p>
       </div>
 
@@ -154,7 +156,7 @@ export default function ExpenseForm({ members = [], onCreate }) {
           <label className="text-sm font-medium text-slate-700">Date</label>
           <input
             type="date"
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 bg-white"
             value={date}
             onChange={(e) => setDate(e.target.value)}
           />
@@ -163,7 +165,7 @@ export default function ExpenseForm({ members = [], onCreate }) {
         <div>
           <label className="text-sm font-medium text-slate-700">Category</label>
           <select
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 bg-white"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
@@ -177,23 +179,26 @@ export default function ExpenseForm({ members = [], onCreate }) {
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700">
-          Notes (optional)
-        </label>
+        <label className="text-sm font-medium text-slate-700">Notes</label>
         <input
           className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Anything relevant…"
+          placeholder="Optional"
         />
       </div>
 
-      {/* ✅ English file UI */}
-      <FilePicker file={file} onChange={setFile} label="Photo (optional)" />
+      <FilePicker
+        label="Photo (optional)"
+        helper="Max 5MB. JPG/PNG/WebP."
+        accept="image/*"
+        value={file}
+        onChange={setFile}
+      />
 
       <button
         disabled={!canSubmit || isUploading}
-        className="w-full rounded-lg bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+        className="w-full rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
       >
         {isUploading ? "Uploading..." : "Add expense"}
       </button>
