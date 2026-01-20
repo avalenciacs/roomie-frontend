@@ -1,12 +1,6 @@
-// src/components/FlatTopNav.jsx
 import { Link, useLocation } from "react-router-dom";
 
-export default function FlatTopNav({
-  flatId,
-  title,
-  subtitle,
-  backTo = "/",
-}) {
+export default function FlatTopNav({ flatId, title, subtitle, backTo = "/" }) {
   const { pathname } = useLocation();
 
   const isFlat = pathname === `/flats/${flatId}`;
@@ -18,37 +12,41 @@ export default function FlatTopNav({
   const tabActive = "bg-slate-900 text-white";
   const tabIdle = "text-slate-700 hover:bg-slate-100";
 
-  // Back behaves like a tab but fixed width
-  const backBase =
-    "shrink-0 w-12 h-9 flex items-center justify-center rounded-full transition";
-  const backIdle = "text-slate-700 hover:bg-slate-100";
-
   return (
     <div className="w-full border-b border-slate-200 bg-white">
       <div className="mx-auto w-full max-w-3xl px-4 py-4 space-y-3">
-        {/* Title centered */}
+        {/* Header row: back on the far-left, title perfectly centered */}
         {title ? (
-          <div className="text-center">
-            <h1 className="text-base font-semibold text-slate-900">{title}</h1>
-            {subtitle ? (
-              <p className="mt-0.5 text-sm text-slate-600">{subtitle}</p>
-            ) : null}
+          <div className="relative">
+            {/* Back button (left aligned, bigger) */}
+            <Link
+              to={backTo}
+              aria-label="Back to My Flats"
+              className="absolute left-0 top-1/2 -translate-y-1/2 flex h-16 w-16 items-center justify-center rounded-full hover:bg-slate-100 transition"
+              title="Back"
+            >
+              <img
+                src="/back.svg"
+                alt="Back"
+                className="h-8 w-8"
+                draggable="false"
+              />
+            </Link>
+
+            {/* Centered title/subtitle */}
+            <div className="text-center">
+              <h1 className="text-base font-semibold text-slate-900">
+                {title}
+              </h1>
+              {subtitle ? (
+                <p className="mt-0.5 text-sm text-slate-600">{subtitle}</p>
+              ) : null}
+            </div>
           </div>
         ) : null}
 
-        {/* One single bar: Back inside + Tabs */}
+        {/* Tabs */}
         <div className="rounded-full border border-slate-200 bg-slate-50 p-1 flex items-center gap-1">
-          <Link
-            to={backTo}
-            aria-label="Back"
-            className={`${backBase} ${backIdle}`}
-            title="Back"
-          >
-            <span aria-hidden className="text-lg leading-none">
-              ←
-            </span>
-          </Link>
-
           <Link
             to={`/flats/${flatId}`}
             className={`${tabBase} ${isFlat ? tabActive : tabIdle}`}

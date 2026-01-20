@@ -1,4 +1,4 @@
-// src/pages/FlatBalance.jsx
+
 import { useEffect, useMemo, useState, useContext } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "../api/api";
@@ -116,7 +116,9 @@ function FlatBalance() {
   const settlements = Array.isArray(data.settlements) ? data.settlements : [];
 
   const youOwe = myEmail ? settlements.filter((s) => s?.from === myEmail) : [];
-  const youReceive = myEmail ? settlements.filter((s) => s?.to === myEmail) : [];
+  const youReceive = myEmail
+    ? settlements.filter((s) => s?.to === myEmail)
+    : [];
 
   const sum = (arr) => arr.reduce((acc, x) => acc + Number(x?.amount || 0), 0);
   const oweTotal = sum(youOwe);
@@ -212,7 +214,8 @@ function FlatBalance() {
               </ul>
             ) : (
               <p className="text-sm text-slate-700">
-                {youOwe.length} {youOwe.length === 1 ? "payment" : "payments"} pending.
+                {youOwe.length} {youOwe.length === 1 ? "payment" : "payments"}{" "}
+                pending.
               </p>
             )}
           </CardBody>
@@ -222,7 +225,9 @@ function FlatBalance() {
         <Card>
           <CardHeader
             title="You receive"
-            subtitle={youReceive.length ? "What you should get" : "No incoming payments"}
+            subtitle={
+              youReceive.length ? "What you should get" : "No incoming payments"
+            }
             right={
               <Pill tone={youReceive.length ? "pos" : "neutral"}>
                 {youReceive.length ? formatMoney(receiveTotal) : "OK"}
@@ -264,7 +269,11 @@ function FlatBalance() {
               </ul>
             ) : (
               <p className="text-sm text-slate-700">
-                {youReceive.length} {youReceive.length === 1 ? "incoming payment" : "incoming payments"}.
+                {youReceive.length}{" "}
+                {youReceive.length === 1
+                  ? "incoming payment"
+                  : "incoming payments"}
+                .
               </p>
             )}
           </CardBody>
@@ -355,7 +364,8 @@ function FlatBalance() {
               </ul>
             )}
             <p className="mt-3 text-xs text-slate-500">
-              Tip: these are suggested transfers. You can pay in any way as long as totals match.
+              Tip: these are suggested transfers. You can pay in any way as long
+              as totals match.
             </p>
           </CardBody>
         </Card>

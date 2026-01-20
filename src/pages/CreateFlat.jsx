@@ -1,4 +1,4 @@
-// src/pages/CreateFlat.jsx
+
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../api/api";
@@ -30,14 +30,14 @@ function CreateFlat() {
       await api.post(
         "/api/flats",
         { name: name.trim(), description: description.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       navigate("/");
     } catch (error) {
       setErrorMessage(
         error?.response?.data?.message ||
-          "Error creating flat. Please try again."
+          "Error creating flat. Please try again.",
       );
     } finally {
       setIsSubmitting(false);

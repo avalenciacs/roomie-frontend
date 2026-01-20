@@ -1,36 +1,60 @@
 import { useMemo, useState } from "react";
+import { uploadImage } from "../api/uploads";
 import { Button, Card, CardBody, CardHeader, Input, Pill } from "./ui/ui";
+import FilePicker from "./FilePicker";
 
-function TaskForm({ members, onCreate }) {
+function TaskForm({ members = [], onCreate }) {
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
 
+  const [file, setFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
   const nameOrEmail = (u) => u?.name || u?.email || "User";
-  const memberOptions = useMemo(() => members || [], [members]);
+  const canSubmit = useMemo(() => title.trim().length > 0, [title]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!canSubmit) return;
 
-    onCreate({
-      title,
-      assignedTo: assignedTo || null,
-    });
+    try {
+      let imageUrl = "";
 
-    setTitle("");
-    setAssignedTo("");
+      if (file) {
+        setIsUploading(true);
+        imageUrl = await uploadImage(file);
+      }
+
+      await onCreate({
+        title: title.trim(),
+        description: description.trim(),
+        assignedTo: assignedTo || null,
+        imageUrl, // "" if no photo
+      });
+
+      setTitle("");
+      setDescription("");
+      setAssignedTo("");
+      setFile(null);
+    } catch (err) {
+      alert(err?.response?.data?.message || "Error creating task");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
     <Card className="overflow-hidden">
       <CardHeader
         title="Add task"
-        subtitle="Create a task and optionally assign it"
+        subtitle="Create a task and optionally attach a photo"
         right={<Pill tone="neutral">New</Pill>}
       />
       <CardBody>
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="md:col-span-2">
+          <div className="space-y-2">
+            <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">
                 Title
               </label>
@@ -42,7 +66,18 @@ function TaskForm({ members, onCreate }) {
               />
             </div>
 
-            <div className="md:col-span-2">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">
+                Notes (optional)
+              </label>
+              <Input
+                placeholder="Any details…"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+
+            <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">
                 Assigned to
               </label>
@@ -52,7 +87,7 @@ function TaskForm({ members, onCreate }) {
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
               >
                 <option value="">Unassigned</option>
-                {memberOptions.map((m) => (
+                {members.map((m) => (
                   <option key={m._id} value={m._id} title={m.email}>
                     {nameOrEmail(m)}
                   </option>
@@ -63,11 +98,23 @@ function TaskForm({ members, onCreate }) {
                 If unassigned, someone can claim it later.
               </p>
             </div>
+
+            {/* ✅ English file UI */}
+            <FilePicker
+              file={file}
+              onChange={setFile}
+              label="Photo (optional)"
+            />
           </div>
 
-          <div className="flex items-center justify-end">
-            <Button type="submit">Create task</Button>
-          </div>
+          {/* ✅ full-width green button like Expenses */}
+          <Button
+            type="submit"
+            className="w-full bg-emerald-600 hover:bg-emerald-700"
+            disabled={isUploading}
+          >
+            {isUploading ? "Uploading..." : "Create task"}
+          </Button>
         </form>
       </CardBody>
     </Card>

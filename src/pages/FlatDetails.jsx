@@ -101,7 +101,7 @@ function FlatDetails() {
   };
 
   const ownerId = flat?.owner?._id || flat?.owner;
-const isOwner = flat && String(ownerId) === String(user?._id);
+  const isOwner = flat && String(ownerId) === String(user?._id);
 
   // ───────── FETCH ─────────
   const getFlat = useCallback(async () => {
@@ -125,7 +125,7 @@ const isOwner = flat && String(ownerId) === String(user?._id);
     setTasks(res.data);
   }, [flatId, token]);
 
-  // ✅ Load pending invitations for this flat (owner only)
+  // Load pending invitations for this flat (owner only)
   const getPendingInvites = useCallback(async () => {
     if (!isOwner) return;
     setInvitesLoading(true);
@@ -138,7 +138,7 @@ const isOwner = flat && String(ownerId) === String(user?._id);
       setPendingInvites(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
       setInvitesError(
-        e?.response?.data?.message || "Error loading pending invitations"
+        e?.response?.data?.message || "Error loading pending invitations",
       );
       setPendingInvites([]);
     } finally {
@@ -229,7 +229,7 @@ const isOwner = flat && String(ownerId) === String(user?._id);
       await api.post(
         "/api/invitations",
         { flatId, email: cleanEmail },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       setEmail("");
@@ -254,7 +254,7 @@ const isOwner = flat && String(ownerId) === String(user?._id);
       await api.post(
         `/api/invitations/${invitationId}/revoke`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       await getPendingInvites();
     } catch (e) {
@@ -309,7 +309,7 @@ const isOwner = flat && String(ownerId) === String(user?._id);
       await api.post(
         `/api/flats/${flatId}/tasks`,
         { ...taskData, status: "pending" },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       await getTasks();
     } catch (error) {
@@ -322,7 +322,7 @@ const isOwner = flat && String(ownerId) === String(user?._id);
       await api.put(
         `/api/tasks/${taskId}`,
         { assignedTo: user._id },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       await getTasks();
     } catch (error) {
@@ -335,7 +335,7 @@ const isOwner = flat && String(ownerId) === String(user?._id);
       await api.put(
         `/api/tasks/${taskId}`,
         { status: "doing" },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       await getTasks();
     } catch (error) {
@@ -348,7 +348,7 @@ const isOwner = flat && String(ownerId) === String(user?._id);
       await api.put(
         `/api/tasks/${taskId}`,
         { status: "done" },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       await getTasks();
     } catch (error) {
@@ -465,7 +465,9 @@ const isOwner = flat && String(ownerId) === String(user?._id);
       >
         <Card>
           <CardBody>
-            <p className="text-sm font-semibold text-slate-900">Flat not found</p>
+            <p className="text-sm font-semibold text-slate-900">
+              Flat not found
+            </p>
             {pageError ? (
               <p className="mt-1 text-sm text-slate-600">{pageError}</p>
             ) : null}
@@ -615,7 +617,9 @@ const isOwner = flat && String(ownerId) === String(user?._id);
                     <div>
                       <p className="text-xs font-medium text-slate-700">
                         Type:{" "}
-                        <span className="font-semibold">{flatNameForDelete}</span>
+                        <span className="font-semibold">
+                          {flatNameForDelete}
+                        </span>
                       </p>
                       <Input
                         value={deleteText}
@@ -673,17 +677,17 @@ const isOwner = flat && String(ownerId) === String(user?._id);
                       {overlay === "expenses"
                         ? "Expenses"
                         : overlay === "members"
-                        ? "Members"
-                        : "Tasks"}
+                          ? "Members"
+                          : "Tasks"}
                     </p>
                     <p className="text-xs text-slate-500">
                       {overlay === "expenses"
                         ? "Create and review shared expenses"
                         : overlay === "members"
-                        ? isOwner
-                          ? "Manage members"
-                          : "Flat members"
-                        : "Assign tasks and track progress"}
+                          ? isOwner
+                            ? "Manage members"
+                            : "Flat members"
+                          : "Assign tasks and track progress"}
                     </p>
                   </div>
                   <Button
@@ -841,7 +845,10 @@ const isOwner = flat && String(ownerId) === String(user?._id);
                   {overlay === "expenses" ? (
                     <div className="space-y-3">
                       <Card>
-                        <CardHeader title="Add expense" subtitle="Keep it quick" />
+                        <CardHeader
+                          title="Add expense"
+                          subtitle="Keep it quick"
+                        />
                         <CardBody>
                           <ExpenseForm
                             members={flat.members}
@@ -853,7 +860,9 @@ const isOwner = flat && String(ownerId) === String(user?._id);
                       {expenses.length === 0 ? (
                         <Card>
                           <CardBody>
-                            <p className="text-sm text-slate-700">No expenses yet</p>
+                            <p className="text-sm text-slate-700">
+                              No expenses yet
+                            </p>
                           </CardBody>
                         </Card>
                       ) : (
@@ -862,7 +871,8 @@ const isOwner = flat && String(ownerId) === String(user?._id);
                             const creatorId =
                               e.createdBy?._id || e.createdBy || null;
                             const isCreator =
-                              creatorId && String(creatorId) === String(user?._id);
+                              creatorId &&
+                              String(creatorId) === String(user?._id);
                             const isOpen = openExpenseId === e._id;
 
                             return (
@@ -874,20 +884,25 @@ const isOwner = flat && String(ownerId) === String(user?._id);
                                         <p className="truncate text-sm font-semibold text-slate-900">
                                           {e.title}
                                         </p>
-                                        <Pill tone="neutral">{formatMoney(e.amount)}</Pill>
+                                        <Pill tone="neutral">
+                                          {formatMoney(e.amount)}
+                                        </Pill>
                                       </div>
                                       <p className="mt-1 text-sm text-slate-700">
                                         Paid by: <UserName u={e.paidBy} />
                                       </p>
                                       <p className="text-xs text-slate-500">
-                                        {e.category || "general"} · {fmtDate(e.date)}
+                                        {e.category || "general"} ·{" "}
+                                        {fmtDate(e.date)}
                                       </p>
                                     </div>
 
                                     <Button
                                       variant="ghost"
                                       className="px-3 py-2"
-                                      onClick={() => toggleExpenseDetails(e._id)}
+                                      onClick={() =>
+                                        toggleExpenseDetails(e._id)
+                                      }
                                     >
                                       {isOpen ? "Hide" : "Details"}
                                     </Button>
@@ -917,7 +932,28 @@ const isOwner = flat && String(ownerId) === String(user?._id);
                                       </div>
 
                                       {e.notes ? (
-                                        <div className="mt-2">Notes: {e.notes}</div>
+                                        <div className="mt-2">
+                                          Notes: {e.notes}
+                                        </div>
+                                      ) : null}
+
+                                      {e.imageUrl ? (
+                                        <div className="mt-3">
+                                          <p className="text-xs font-medium text-slate-700 mb-2">
+                                            Receipt
+                                          </p>
+                                          <a
+                                            href={e.imageUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                          >
+                                            <img
+                                              src={e.imageUrl}
+                                              alt="Receipt"
+                                              className="w-full max-h-72 object-cover rounded-xl ring-1 ring-slate-200"
+                                            />
+                                          </a>
+                                        </div>
                                       ) : null}
 
                                       {isCreator ? (
@@ -951,14 +987,19 @@ const isOwner = flat && String(ownerId) === String(user?._id);
                           subtitle="Create and optionally assign it"
                         />
                         <CardBody>
-                          <TaskForm members={flat.members} onCreate={createTask} />
+                          <TaskForm
+                            members={flat.members}
+                            onCreate={createTask}
+                          />
                         </CardBody>
                       </Card>
 
                       {sortedTasks.length === 0 ? (
                         <Card>
                           <CardBody>
-                            <p className="text-sm text-slate-700">No tasks yet</p>
+                            <p className="text-sm text-slate-700">
+                              No tasks yet
+                            </p>
                           </CardBody>
                         </Card>
                       ) : (
@@ -970,9 +1011,11 @@ const isOwner = flat && String(ownerId) === String(user?._id);
                               t.createdBy?._id || t.createdBy || null;
 
                             const isAssignedToMe =
-                              assignedId && String(assignedId) === String(user?._id);
+                              assignedId &&
+                              String(assignedId) === String(user?._id);
                             const isCreator =
-                              creatorId && String(creatorId) === String(user?._id);
+                              creatorId &&
+                              String(creatorId) === String(user?._id);
                             const isOpen = openTaskId === t._id;
 
                             return (
@@ -1009,7 +1052,8 @@ const isOwner = flat && String(ownerId) === String(user?._id);
                                         </Button>
                                       ) : null}
 
-                                      {isAssignedToMe && t.status === "pending" ? (
+                                      {isAssignedToMe &&
+                                      t.status === "pending" ? (
                                         <Button
                                           className="px-3 py-2"
                                           onClick={() => startTask(t._id)}
@@ -1018,13 +1062,33 @@ const isOwner = flat && String(ownerId) === String(user?._id);
                                         </Button>
                                       ) : null}
 
-                                      {isAssignedToMe && t.status === "doing" ? (
+                                      {isAssignedToMe &&
+                                      t.status === "doing" ? (
                                         <Button
                                           className="px-3 py-2"
                                           onClick={() => markTaskDone(t._id)}
                                         >
                                           Done
                                         </Button>
+                                      ) : null}
+
+                                      {t.imageUrl ? (
+                                        <div className="mt-3">
+                                          <p className="text-xs font-medium text-slate-700 mb-2">
+                                            Photo
+                                          </p>
+                                          <a
+                                            href={t.imageUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                          >
+                                            <img
+                                              src={t.imageUrl}
+                                              alt="Task"
+                                              className="w-full max-h-72 object-cover rounded-xl ring-1 ring-slate-200"
+                                            />
+                                          </a>
+                                        </div>
                                       ) : null}
 
                                       <Button
@@ -1044,7 +1108,9 @@ const isOwner = flat && String(ownerId) === String(user?._id);
                                           Created by:
                                         </span>{" "}
                                         <span title={t.createdBy?.email || ""}>
-                                          {t.createdBy ? nameOrEmail(t.createdBy) : "Unknown"}
+                                          {t.createdBy
+                                            ? nameOrEmail(t.createdBy)
+                                            : "Unknown"}
                                         </span>
                                       </div>
 
@@ -1052,11 +1118,17 @@ const isOwner = flat && String(ownerId) === String(user?._id);
                                         <span className="font-medium text-slate-900">
                                           Created at:
                                         </span>{" "}
-                                        {t.createdAt ? new Date(t.createdAt).toLocaleString() : "-"}
+                                        {t.createdAt
+                                          ? new Date(
+                                              t.createdAt,
+                                            ).toLocaleString()
+                                          : "-"}
                                       </div>
 
                                       {t.description ? (
-                                        <div className="mt-2">Notes: {t.description}</div>
+                                        <div className="mt-2">
+                                          Notes: {t.description}
+                                        </div>
                                       ) : null}
 
                                       {isCreator ? (

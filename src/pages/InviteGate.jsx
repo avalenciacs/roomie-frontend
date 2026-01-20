@@ -1,10 +1,10 @@
-// src/pages/InviteGate.jsx
-import { useEffect, useState, useContext } from "react";
+// src/pages/InviteGate.jsx  (new page you need)
+import { useEffect, useContext, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import api from "../api/api";
 import { AuthContext } from "../context/auth.context";
 import ResponsiveLayout from "../components/ResponsiveLayout";
 import { Card, CardBody, Button } from "../components/ui/ui";
+import api from "../api/api";
 
 export default function InviteGate() {
   const { token } = useParams();
@@ -25,14 +25,14 @@ export default function InviteGate() {
           return;
         }
 
-        // If NOT logged in: store token and go to login
+        // Not logged in -> store and send to login
         if (!isLoggedIn) {
           localStorage.setItem("pendingInviteToken", token);
           navigate("/login", { replace: true });
           return;
         }
 
-        // If logged in: accept now
+        // Logged in -> accept now
         const authToken = localStorage.getItem("authToken");
         const res = await api.post(
           "/api/invitations/accept",
@@ -73,8 +73,8 @@ export default function InviteGate() {
               <p className="text-sm text-slate-600">{error}</p>
               <div className="flex gap-2">
                 <Button onClick={() => navigate("/login")}>Go to login</Button>
-                <Button variant="outline" onClick={() => navigate("/flats")}>
-                  My flats
+                <Button variant="outline" onClick={() => navigate("/")}>
+                  Home
                 </Button>
               </div>
             </div>

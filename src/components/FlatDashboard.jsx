@@ -1,4 +1,4 @@
-// src/components/FlatDashboard.jsx
+
 import { useMemo } from "react";
 import { Card, CardBody, CardHeader, Pill } from "./ui/ui";
 import {
@@ -32,7 +32,7 @@ export default function FlatDashboard({ expenses = [] }) {
     const currentMonth = expenses.filter((e) => isInCurrentMonth(e.date));
     const total = currentMonth.reduce(
       (acc, e) => acc + Number(e.amount || 0),
-      0
+      0,
     );
 
     const map = new Map();

@@ -1,4 +1,4 @@
-// src/components/Header.jsx
+
 import { Link } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "../context/auth.context";
@@ -37,11 +37,7 @@ function Header() {
         {/* Logout (right) */}
         <div className="justify-self-end">
           {user ? (
-            <Button
-              variant="outline"
-              className="px-3 py-2"
-              onClick={logout}
-            >
+            <Button variant="outline" className="px-3 py-2" onClick={logout}>
               Logout
             </Button>
           ) : null}

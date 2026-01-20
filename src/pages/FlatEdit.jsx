@@ -4,7 +4,14 @@ import api from "../api/api";
 import { AuthContext } from "../context/auth.context";
 import ResponsiveLayout from "../components/ResponsiveLayout";
 import FlatTopNav from "../components/FlatTopNav";
-import { Card, CardBody, CardHeader, Button, Input, Pill } from "../components/ui/ui";
+import {
+  Card,
+  CardBody,
+  CardHeader,
+  Button,
+  Input,
+  Pill,
+} from "../components/ui/ui";
 
 export default function FlatEdit() {
   const { flatId } = useParams();
@@ -59,7 +66,10 @@ export default function FlatEdit() {
     };
   }, [flatId, token]);
 
-  const requiredText = useMemo(() => (flat?.name?.trim() ? flat.name.trim() : "DELETE"), [flat]);
+  const requiredText = useMemo(
+    () => (flat?.name?.trim() ? flat.name.trim() : "DELETE"),
+    [flat],
+  );
   const canDelete = isOwner && confirmText.trim() === requiredText;
 
   const deleteFlat = async () => {
@@ -79,7 +89,12 @@ export default function FlatEdit() {
 
   if (loading) {
     return (
-      <ResponsiveLayout top={<FlatTopNav flatId={flatId} title="Settings" subtitle="Loading…" />} hideHeader>
+      <ResponsiveLayout
+        top={
+          <FlatTopNav flatId={flatId} title="Settings" subtitle="Loading…" />
+        }
+        hideHeader
+      >
         <div className="h-32 animate-pulse rounded-2xl bg-slate-200/60" />
       </ResponsiveLayout>
     );
@@ -87,11 +102,18 @@ export default function FlatEdit() {
 
   if (!flat) {
     return (
-      <ResponsiveLayout top={<FlatTopNav flatId={flatId} title="Settings" subtitle="" />} hideHeader>
+      <ResponsiveLayout
+        top={<FlatTopNav flatId={flatId} title="Settings" subtitle="" />}
+        hideHeader
+      >
         <Card>
           <CardBody>
-            <p className="text-sm font-semibold text-slate-900">Flat not found</p>
-            {pageError ? <p className="mt-1 text-sm text-slate-600">{pageError}</p> : null}
+            <p className="text-sm font-semibold text-slate-900">
+              Flat not found
+            </p>
+            {pageError ? (
+              <p className="mt-1 text-sm text-slate-600">{pageError}</p>
+            ) : null}
             <div className="mt-4">
               <Link to="/">
                 <Button>Back to My Flats</Button>
@@ -105,7 +127,13 @@ export default function FlatEdit() {
 
   return (
     <ResponsiveLayout
-      top={<FlatTopNav flatId={flatId} title={flat.name} subtitle={flat.description || "Shared flat workspace"} />}
+      top={
+        <FlatTopNav
+          flatId={flatId}
+          title={flat.name}
+          subtitle={flat.description || "Shared flat workspace"}
+        />
+      }
       hideHeader
     >
       {pageError ? (
@@ -120,21 +148,36 @@ export default function FlatEdit() {
       <div className="mt-4 space-y-4">
         {/* BASIC SETTINGS (listo para que luego implementes PUT) */}
         <Card>
-          <CardHeader title="Settings" subtitle="Edit your flat details" right={!isOwner ? <Pill tone="neutral">Read only</Pill> : null} />
+          <CardHeader
+            title="Settings"
+            subtitle="Edit your flat details"
+            right={!isOwner ? <Pill tone="neutral">Read only</Pill> : null}
+          />
           <CardBody>
             <div className="grid grid-cols-1 gap-3">
               <div>
                 <p className="text-xs font-medium text-slate-700">Name</p>
-                <Input value={name} onChange={(e) => setName(e.target.value)} disabled={!isOwner} />
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={!isOwner}
+                />
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-700">Description</p>
-                <Input value={desc} onChange={(e) => setDesc(e.target.value)} disabled={!isOwner} />
+                <p className="text-xs font-medium text-slate-700">
+                  Description
+                </p>
+                <Input
+                  value={desc}
+                  onChange={(e) => setDesc(e.target.value)}
+                  disabled={!isOwner}
+                />
               </div>
 
               {/* Guardar aún no (si quieres te lo hago con PUT) */}
               <p className="text-xs text-slate-500">
-                Saving not implemented yet. This screen is also the best place for delete.
+                Saving not implemented yet. This screen is also the best place
+                for delete.
               </p>
             </div>
           </CardBody>
@@ -145,11 +188,15 @@ export default function FlatEdit() {
           <CardHeader title="Danger zone" subtitle="Irreversible actions" />
           <CardBody>
             {!isOwner ? (
-              <p className="text-sm text-slate-600">Only the owner can delete this flat.</p>
+              <p className="text-sm text-slate-600">
+                Only the owner can delete this flat.
+              </p>
             ) : (
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-900">Delete flat</p>
+                  <p className="text-sm font-semibold text-slate-900">
+                    Delete flat
+                  </p>
                   <p className="mt-1 text-sm text-slate-600">
                     This deletes the flat. You will lose access to its data.
                   </p>
@@ -173,19 +220,32 @@ export default function FlatEdit() {
 
       {/* CONFIRM MODAL */}
       {confirmOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={() => setConfirmOpen(false)}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          onClick={() => setConfirmOpen(false)}
+        >
           <div className="absolute inset-0 bg-black/30" />
           <div
             className="relative w-full max-w-md rounded-3xl border border-slate-200 bg-white p-5 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="text-sm font-semibold text-slate-900">Confirm delete</p>
+            <p className="text-sm font-semibold text-slate-900">
+              Confirm delete
+            </p>
             <p className="mt-1 text-sm text-slate-600">
-              Type <span className="font-semibold text-slate-900">{requiredText}</span> to confirm.
+              Type{" "}
+              <span className="font-semibold text-slate-900">
+                {requiredText}
+              </span>{" "}
+              to confirm.
             </p>
 
             <div className="mt-3">
-              <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder={requiredText} />
+              <Input
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder={requiredText}
+              />
             </div>
 
             <div className="mt-4 flex items-center justify-end gap-2">
