@@ -38,7 +38,7 @@ function FlatDetails() {
   const [openTaskId, setOpenTaskId] = useState(null);
   const [openExpenseId, setOpenExpenseId] = useState(null);
 
-  const [overlay, setOverlay] = useState(""); 
+  const [overlay, setOverlay] = useState("");
   const scrollYRef = useRef(0);
 
   // Owner settings overlay (edit/delete)
@@ -48,6 +48,15 @@ function FlatDetails() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteText, setDeleteText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Invite feedback
+  const [inviteMsg, setInviteMsg] = useState("");
+  const [isInviting, setIsInviting] = useState(false);
+
+  //  Pending invites (UI only)
+  const [pendingInvites, setPendingInvites] = useState([]);
+  const [invitesError, setInvitesError] = useState("");
+  const [invitesLoading, setInvitesLoading] = useState(false);
 
   const token = localStorage.getItem("authToken");
 
@@ -85,7 +94,14 @@ function FlatDetails() {
     return Number.isNaN(date.getTime()) ? "-" : date.toLocaleDateString();
   };
 
-  const isOwner = flat && String(flat.owner) === String(user?._id);
+  const fmtDateTime = (d) => {
+    if (!d) return "-";
+    const date = new Date(d);
+    return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString();
+  };
+
+  const ownerId = flat?.owner?._id || flat?.owner;
+const isOwner = flat && String(ownerId) === String(user?._id);
 
   // ───────── FETCH ─────────
   const getFlat = useCallback(async () => {
@@ -108,6 +124,27 @@ function FlatDetails() {
     });
     setTasks(res.data);
   }, [flatId, token]);
+
+  // ✅ Load pending invitations for this flat (owner only)
+  const getPendingInvites = useCallback(async () => {
+    if (!isOwner) return;
+    setInvitesLoading(true);
+    setInvitesError("");
+    try {
+      // backend expected: GET /api/invitations?flatId=...
+      const res = await api.get(`/api/invitations?flatId=${flatId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setPendingInvites(Array.isArray(res.data) ? res.data : []);
+    } catch (e) {
+      setInvitesError(
+        e?.response?.data?.message || "Error loading pending invitations"
+      );
+      setPendingInvites([]);
+    } finally {
+      setInvitesLoading(false);
+    }
+  }, [flatId, token, isOwner]);
 
   useEffect(() => {
     let alive = true;
@@ -141,6 +178,9 @@ function FlatDetails() {
 
     setOpenExpenseId(null);
     setOpenTaskId(null);
+
+    // When opening members overlay, refresh pending invites
+    if (id === "members" && isOwner) getPendingInvites();
   };
 
   const closeOverlay = () => {
@@ -162,7 +202,6 @@ function FlatDetails() {
     requestAnimationFrame(() => window.scrollTo(0, scrollYRef.current || 0));
   };
 
- 
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== "Escape") return;
@@ -172,22 +211,54 @@ function FlatDetails() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-   
   }, [overlay, settingsOpen, deleteOpen]);
 
   // ───────── MEMBERS ─────────
+  //  Send invitation email via /api/invitations
   const handleAddMember = async (e) => {
     e.preventDefault();
+    if (!isOwner) return;
+
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) return;
+
+    setInviteMsg("");
+    setIsInviting(true);
+
     try {
       await api.post(
-        `/api/flats/${flatId}/members`,
-        { email },
+        "/api/invitations",
+        { flatId, email: cleanEmail },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
       setEmail("");
-      await getFlat();
+      setInviteMsg(`Invitation sent to ${cleanEmail}`);
+      // Refresh pending invites list
+      await getPendingInvites();
     } catch (error) {
-      alert(error?.response?.data?.message || "Error adding member");
+      setInviteMsg("");
+      alert(error?.response?.data?.message || "Error sending invitation");
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
+  //  revoke pending invitation (owner)
+  const revokeInvite = async (invitationId) => {
+    if (!isOwner) return;
+    const ok = window.confirm("Revoke this invitation?");
+    if (!ok) return;
+
+    try {
+      await api.post(
+        `/api/invitations/${invitationId}/revoke`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      await getPendingInvites();
+    } catch (e) {
+      alert(e?.response?.data?.message || "Error revoking invitation");
     }
   };
 
@@ -343,7 +414,7 @@ function FlatDetails() {
       });
       closeDelete();
       closeSettings();
-      navigate("/"); 
+      navigate("/");
     } catch (e) {
       alert(e?.response?.data?.message || "Error deleting flat");
     } finally {
@@ -458,16 +529,9 @@ function FlatDetails() {
       {/* OWNER SETTINGS (inline, integrated at bottom) */}
       {isOwner ? (
         <Card className="mt-6 border-slate-200">
-          <CardHeader
-            title="Settings"
-            subtitle="Only visible to the owner"
-          />
+          <CardHeader title="Settings" subtitle="Only visible to the owner" />
           <CardBody className="space-y-3">
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={openSettings}
-            >
+            <Button variant="outline" className="w-full" onClick={openSettings}>
               Open settings
             </Button>
           </CardBody>
@@ -542,9 +606,7 @@ function FlatDetails() {
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
                     This action cannot be undone.
-                    {flatNameForDelete
-                      ? ` Type the flat name to confirm.`
-                      : ""}
+                    {flatNameForDelete ? ` Type the flat name to confirm.` : ""}
                   </p>
                 </div>
 
@@ -552,7 +614,8 @@ function FlatDetails() {
                   {flatNameForDelete ? (
                     <div>
                       <p className="text-xs font-medium text-slate-700">
-                        Type: <span className="font-semibold">{flatNameForDelete}</span>
+                        Type:{" "}
+                        <span className="font-semibold">{flatNameForDelete}</span>
                       </p>
                       <Input
                         value={deleteText}
@@ -577,7 +640,8 @@ function FlatDetails() {
                       onClick={handleDeleteFlat}
                       disabled={
                         isDeleting ||
-                        (flatNameForDelete && deleteText.trim() !== flatNameForDelete)
+                        (flatNameForDelete &&
+                          deleteText.trim() !== flatNameForDelete)
                       }
                     >
                       {isDeleting ? "Deleting…" : "Delete"}
@@ -677,6 +741,66 @@ function FlatDetails() {
                             ))}
                           </ul>
 
+                          {/*  Pending invitations section */}
+                          {isOwner ? (
+                            <div className="mt-4">
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-semibold text-slate-900">
+                                  Pending invitations
+                                </p>
+                                <Button
+                                  variant="outline"
+                                  className="px-3 py-2"
+                                  onClick={getPendingInvites}
+                                  disabled={invitesLoading}
+                                >
+                                  {invitesLoading ? "Refreshing…" : "Refresh"}
+                                </Button>
+                              </div>
+
+                              {invitesError ? (
+                                <p className="mt-2 text-xs text-rose-700">
+                                  {invitesError}
+                                </p>
+                              ) : null}
+
+                              {invitesLoading ? (
+                                <div className="mt-2 h-16 rounded-2xl bg-slate-200/60 animate-pulse" />
+                              ) : pendingInvites.length === 0 ? (
+                                <p className="mt-2 text-xs text-slate-500">
+                                  No pending invitations.
+                                </p>
+                              ) : (
+                                <ul className="mt-2 space-y-2">
+                                  {pendingInvites.map((inv) => (
+                                    <li
+                                      key={inv._id}
+                                      className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2"
+                                    >
+                                      <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold text-slate-900">
+                                          {inv.email}
+                                        </p>
+                                        <p className="truncate text-xs text-slate-500">
+                                          Expires: {fmtDateTime(inv.expiresAt)}
+                                        </p>
+                                      </div>
+
+                                      <Button
+                                        variant="outline"
+                                        className="px-3 py-2 text-rose-700 border-rose-200 hover:bg-rose-50"
+                                        onClick={() => revokeInvite(inv._id)}
+                                      >
+                                        Revoke
+                                      </Button>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          ) : null}
+
+                          {/* Invite form */}
                           {isOwner ? (
                             <form
                               onSubmit={handleAddMember}
@@ -684,17 +808,28 @@ function FlatDetails() {
                             >
                               <Input
                                 type="email"
-                                placeholder="member@email.com"
+                                placeholder="friend@email.com"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
                               />
-                              <Button type="submit" className="w-full">
-                                Add member
+                              <Button
+                                type="submit"
+                                className="w-full"
+                                disabled={isInviting}
+                              >
+                                {isInviting ? "Sending…" : "Send invitation"}
                               </Button>
-                              <p className="text-xs text-slate-500">
-                                Tip: members must have an account first.
-                              </p>
+
+                              {inviteMsg ? (
+                                <p className="text-xs text-emerald-700">
+                                  {inviteMsg}
+                                </p>
+                              ) : (
+                                <p className="text-xs text-slate-500">
+                                  They’ll receive an email with an invite link.
+                                </p>
+                              )}
                             </form>
                           ) : null}
                         </CardBody>
@@ -727,8 +862,7 @@ function FlatDetails() {
                             const creatorId =
                               e.createdBy?._id || e.createdBy || null;
                             const isCreator =
-                              creatorId &&
-                              String(creatorId) === String(user?._id);
+                              creatorId && String(creatorId) === String(user?._id);
                             const isOpen = openExpenseId === e._id;
 
                             return (
@@ -740,9 +874,7 @@ function FlatDetails() {
                                         <p className="truncate text-sm font-semibold text-slate-900">
                                           {e.title}
                                         </p>
-                                        <Pill tone="neutral">
-                                          {formatMoney(e.amount)}
-                                        </Pill>
+                                        <Pill tone="neutral">{formatMoney(e.amount)}</Pill>
                                       </div>
                                       <p className="mt-1 text-sm text-slate-700">
                                         Paid by: <UserName u={e.paidBy} />
@@ -755,9 +887,7 @@ function FlatDetails() {
                                     <Button
                                       variant="ghost"
                                       className="px-3 py-2"
-                                      onClick={() =>
-                                        toggleExpenseDetails(e._id)
-                                      }
+                                      onClick={() => toggleExpenseDetails(e._id)}
                                     >
                                       {isOpen ? "Hide" : "Details"}
                                     </Button>
@@ -787,9 +917,7 @@ function FlatDetails() {
                                       </div>
 
                                       {e.notes ? (
-                                        <div className="mt-2">
-                                          Notes: {e.notes}
-                                        </div>
+                                        <div className="mt-2">Notes: {e.notes}</div>
                                       ) : null}
 
                                       {isCreator ? (
@@ -823,19 +951,14 @@ function FlatDetails() {
                           subtitle="Create and optionally assign it"
                         />
                         <CardBody>
-                          <TaskForm
-                            members={flat.members}
-                            onCreate={createTask}
-                          />
+                          <TaskForm members={flat.members} onCreate={createTask} />
                         </CardBody>
                       </Card>
 
                       {sortedTasks.length === 0 ? (
                         <Card>
                           <CardBody>
-                            <p className="text-sm text-slate-700">
-                              No tasks yet
-                            </p>
+                            <p className="text-sm text-slate-700">No tasks yet</p>
                           </CardBody>
                         </Card>
                       ) : (
@@ -847,11 +970,9 @@ function FlatDetails() {
                               t.createdBy?._id || t.createdBy || null;
 
                             const isAssignedToMe =
-                              assignedId &&
-                              String(assignedId) === String(user?._id);
+                              assignedId && String(assignedId) === String(user?._id);
                             const isCreator =
-                              creatorId &&
-                              String(creatorId) === String(user?._id);
+                              creatorId && String(creatorId) === String(user?._id);
                             const isOpen = openTaskId === t._id;
 
                             return (
@@ -888,8 +1009,7 @@ function FlatDetails() {
                                         </Button>
                                       ) : null}
 
-                                      {isAssignedToMe &&
-                                      t.status === "pending" ? (
+                                      {isAssignedToMe && t.status === "pending" ? (
                                         <Button
                                           className="px-3 py-2"
                                           onClick={() => startTask(t._id)}
@@ -924,26 +1044,19 @@ function FlatDetails() {
                                           Created by:
                                         </span>{" "}
                                         <span title={t.createdBy?.email || ""}>
-                                          {t.createdBy
-                                            ? nameOrEmail(t.createdBy)
-                                            : "Unknown"}
+                                          {t.createdBy ? nameOrEmail(t.createdBy) : "Unknown"}
                                         </span>
                                       </div>
+
                                       <div className="mt-2">
                                         <span className="font-medium text-slate-900">
                                           Created at:
                                         </span>{" "}
-                                        {t.createdAt
-                                          ? new Date(
-                                              t.createdAt
-                                            ).toLocaleString()
-                                          : "-"}
+                                        {t.createdAt ? new Date(t.createdAt).toLocaleString() : "-"}
                                       </div>
 
                                       {t.description ? (
-                                        <div className="mt-2">
-                                          Notes: {t.description}
-                                        </div>
+                                        <div className="mt-2">Notes: {t.description}</div>
                                       ) : null}
 
                                       {isCreator ? (

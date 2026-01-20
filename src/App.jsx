@@ -11,6 +11,8 @@ import FlatBalance from "./pages/FlatBalance";
 import FlatDashboardPage from "./pages/FlatDashboardPage";
 import CreateFlat from "./pages/CreateFlat";
 import FlatEdit from "./pages/FlatEdit";
+import InvitePage from "./pages/InvitePage";
+import InviteGate from "./pages/InviteGate";
 
 function App() {
   return (
@@ -71,7 +73,14 @@ function App() {
 
 
         <Route path="/flats/:flatId/edit" element={<FlatEdit />} />
+
+        <Route path="/invite" element={<InvitePage />} />
+
+        <Route path="/invite/:token" element={<InviteGate />} />
+
       </Routes>
+
+      
     </div>
   );
 }
