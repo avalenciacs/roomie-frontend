@@ -13,6 +13,8 @@ import CreateFlat from "./pages/CreateFlat";
 import FlatEdit from "./pages/FlatEdit";
 import InvitePage from "./pages/InvitePage";
 import InviteGate from "./pages/InviteGate";
+import NotFound from "./pages/NotFound";
+
 
 function App() {
   return (
@@ -77,6 +79,8 @@ function App() {
         <Route path="/invite" element={<InvitePage />} />
 
         <Route path="/invite/:token" element={<InviteGate />} />
+
+        <Route path="*" element={<NotFound />} />
 
       </Routes>
 
