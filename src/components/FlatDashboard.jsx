@@ -1,4 +1,4 @@
-// frontend/src/components/FlatDashboard.jsx
+
 import { useMemo, useState } from "react";
 import { Card, CardBody, CardHeader, Pill } from "./ui/ui";
 import {
@@ -219,8 +219,12 @@ export default function FlatDashboard({ expenses = [] }) {
               </p>
               <p className="text-xs text-slate-500">{rangeLabel}</p>
 
-              <div className="mt-3 h-56">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="mt-3 w-full h-56 min-h-[224px]">
+                <ResponsiveContainer
+                  key={rangeLabel}
+                  width="100%"
+                  height="100%"
+                >
                   <PieChart>
                     <Tooltip content={<DonutTooltip total={total} />} />
                     <Legend />
