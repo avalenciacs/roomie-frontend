@@ -1,124 +1,300 @@
-import { useMemo, useState } from "react";
-import { uploadImage } from "../api/uploads";
-import FilePicker from "./FilePicker";
-import { useToast } from "../context/toast.context";
-import { Button, Card, CardBody, CardHeader, Input, Pill } from "./ui/ui";
 
-function TaskForm({ members = [], onCreate }) {
-  const toast = useToast();
+import { useEffect, useMemo, useState } from "react";
+import { Card, CardBody, CardHeader, Pill } from "./ui/ui";
+import {
+  categoryLabel,
+  categoryColor,
+  normalizeCategory,
+} from "../constants/categories";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+} from "recharts";
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [assignedTo, setAssignedTo] = useState("");
+const formatMoney = (n) => `${Number(n || 0).toFixed(2)} €`;
 
-  const [file, setFile] = useState(null);
-  const [isUploading, setIsUploading] = useState(false);
+function toDateOrNull(v) {
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
 
-  const nameOrEmail = (u) => u?.name || u?.email || "User";
-  const canSubmit = useMemo(() => title.trim().length > 0, [title]);
+function startOfDay(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!canSubmit) return;
+function endOfDay(d) {
+  const x = new Date(d);
+  x.setHours(23, 59, 59, 999);
+  return x;
+}
 
-    try {
-      let imageUrl = "";
+function monthRange(offset = 0) {
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  const last = new Date(now.getFullYear(), now.getMonth() + offset + 1, 0);
+  return { start: startOfDay(first), end: endOfDay(last), labelDate: first };
+}
 
-      if (file) {
-        setIsUploading(true);
-        imageUrl = await uploadImage(file);
-      }
+function fmtMonthYear(d) {
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      month: "long",
+      year: "numeric",
+    }).format(d);
+  } catch {
+    return d.toLocaleDateString();
+  }
+}
 
-      await onCreate({
-        title: title.trim(),
-        description: description.trim(),
-        assignedTo: assignedTo || null,
-        imageUrl, // "" si no hay
-      });
+function filterByRange(expenses, start, end) {
+  return expenses.filter((e) => {
+    const d = toDateOrNull(e?.date);
+    if (!d) return false;
+    return d >= start && d <= end;
+  });
+}
 
-      toast.success("Task created");
-
-      setTitle("");
-      setDescription("");
-      setAssignedTo("");
-      setFile(null);
-    } catch (err) {
-      toast.error(err?.response?.data?.message || "Error creating task");
-    } finally {
-      setIsUploading(false);
-    }
-  };
+function DonutTooltip({ active, payload, total }) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0];
+  const value = Number(p?.value || 0);
+  const name = p?.name || "Category";
+  const percent = total > 0 ? (value / total) * 100 : 0;
 
   return (
-    <Card className="overflow-hidden">
+    <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-lg">
+      <p className="text-sm font-semibold text-slate-900">{name}</p>
+      <p className="text-sm text-slate-700">{formatMoney(value)}</p>
+      <p className="text-xs text-slate-500">{percent.toFixed(0)}%</p>
+    </div>
+  );
+}
+
+export default function FlatDashboard({ expenses = [] }) {
+  // period selector
+  const [period, setPeriod] = useState("this"); // this | last | custom
+  const [customFrom, setCustomFrom] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
+  const [customTo, setCustomTo] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
+
+  // Helps Recharts avoid measuring 0x0 during fast route/tab switches
+  const [chartReady, setChartReady] = useState(false);
+
+  const { rangeStart, rangeEnd, rangeLabel, periodSubtitle } = useMemo(() => {
+    if (period === "last") {
+      const r = monthRange(-1);
+      return {
+        rangeStart: r.start,
+        rangeEnd: r.end,
+        rangeLabel: fmtMonthYear(r.labelDate),
+        periodSubtitle: "Last month",
+      };
+    }
+
+    if (period === "custom") {
+      const from = toDateOrNull(customFrom) || new Date();
+      const to = toDateOrNull(customTo) || from;
+
+      const start = startOfDay(from);
+      const end = endOfDay(to >= from ? to : from);
+
+      const label = `${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
+      return {
+        rangeStart: start,
+        rangeEnd: end,
+        rangeLabel: label,
+        periodSubtitle: "Custom range",
+      };
+    }
+
+    // default: this month
+    const r = monthRange(0);
+    return {
+      rangeStart: r.start,
+      rangeEnd: r.end,
+      rangeLabel: fmtMonthYear(r.labelDate),
+      periodSubtitle: "This month",
+    };
+  }, [period, customFrom, customTo]);
+
+  const { total, byCategory } = useMemo(() => {
+    const filtered = filterByRange(expenses, rangeStart, rangeEnd);
+
+    const t = filtered.reduce((acc, e) => acc + Number(e.amount || 0), 0);
+
+    const map = new Map();
+    for (const e of filtered) {
+      const key = normalizeCategory(e.category);
+      map.set(key, (map.get(key) || 0) + Number(e.amount || 0));
+    }
+
+    const arr = Array.from(map.entries())
+      .map(([key, value]) => ({
+        key,
+        name: categoryLabel(key),
+        value,
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    return { total: t, byCategory: arr };
+  }, [expenses, rangeStart, rangeEnd]);
+
+  const hasData = byCategory.length > 0;
+
+  // After layout settles, allow rendering the chart (prevents width/height -1 warnings)
+  useEffect(() => {
+    const t = setTimeout(() => setChartReady(true), 0);
+    return () => clearTimeout(t);
+  }, [rangeLabel, period]);
+
+  return (
+    <Card>
       <CardHeader
-        title="Add task"
-        subtitle="Create a task and optionally attach a photo"
-        right={<Pill tone="neutral">New</Pill>}
+        title="Dashboard"
+        subtitle="Period overview"
+        right={<Pill tone="neutral">{formatMoney(total)}</Pill>}
       />
+
       <CardBody>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="space-y-2">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">
-                Title
-              </label>
-              <Input
-                placeholder="e.g. Take out the trash"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">
-                Notes (optional)
-              </label>
-              <Input
-                placeholder="Any details…"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">
-                Assigned to
-              </label>
-              <select
-                value={assignedTo}
-                onChange={(e) => setAssignedTo(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
-              >
-                <option value="">Unassigned</option>
-                {members.map((m) => (
-                  <option key={m._id} value={m._id} title={m.email}>
-                    {nameOrEmail(m)}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-xs text-slate-500">
-                If unassigned, someone can claim it later.
-              </p>
-            </div>
-
-            <FilePicker
-              label="Photo (optional)"
-              helper="Max 5MB. JPG/PNG/WebP."
-              accept="image/*"
-              value={file}
-              onChange={setFile}
-            />
+        {/* Period selector */}
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-900">{rangeLabel}</p>
+            <p className="text-xs text-slate-500">{periodSubtitle}</p>
           </div>
 
-          <Button type="submit" className="w-full" disabled={isUploading}>
-            {isUploading ? "Uploading..." : "Create task"}
-          </Button>
-        </form>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <label className="text-xs font-medium text-slate-600">
+              Period
+              <select
+                value={period}
+                onChange={(e) => {
+                  setChartReady(false);
+                  setPeriod(e.target.value);
+                }}
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300 sm:w-44"
+              >
+                <option value="this">This month</option>
+                <option value="last">Last month</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+
+            {period === "custom" ? (
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-slate-600">
+                  From
+                  <input
+                    type="date"
+                    value={customFrom}
+                    onChange={(e) => {
+                      setChartReady(false);
+                      setCustomFrom(e.target.value);
+                    }}
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  />
+                </label>
+                <label className="text-xs font-medium text-slate-600">
+                  To
+                  <input
+                    type="date"
+                    value={customTo}
+                    onChange={(e) => {
+                      setChartReady(false);
+                      setCustomTo(e.target.value);
+                    }}
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  />
+                </label>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        {!hasData ? (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-medium text-slate-900">No data yet</p>
+            <p className="mt-1 text-sm text-slate-600">
+              Add expenses with categories to see charts.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {/* Donut */}
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-sm font-semibold text-slate-900">
+                Expenses by category
+              </p>
+              <p className="text-xs text-slate-500">{rangeLabel}</p>
+
+              {chartReady ? (
+                <div className="mt-3 w-full h-56 min-h-[224px]">
+                  <ResponsiveContainer key={rangeLabel} width="100%" height="100%">
+                    <PieChart>
+                      <Tooltip content={<DonutTooltip total={total} />} />
+                      <Legend />
+                      <Pie
+                        data={byCategory}
+                        dataKey="value"
+                        nameKey="name"
+                        outerRadius={90}
+                        innerRadius={45}
+                        paddingAngle={2}
+                      >
+                        {byCategory.map((entry) => (
+                          <Cell key={entry.key} fill={categoryColor(entry.key)} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <div className="mt-3 w-full h-56 min-h-[224px] rounded-xl bg-slate-100 animate-pulse" />
+              )}
+            </div>
+
+            {/* Top categories */}
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-sm font-semibold text-slate-900">
+                Top categories
+              </p>
+              <p className="text-xs text-slate-500">{rangeLabel}</p>
+
+              <ul className="mt-3 space-y-2">
+                {byCategory.slice(0, 6).map((c) => (
+                  <li
+                    key={c.key}
+                    className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="h-3 w-3 rounded-full"
+                        style={{ backgroundColor: categoryColor(c.key) }}
+                      />
+                      <span className="text-sm font-medium text-slate-900">
+                        {c.name}
+                      </span>
+                    </div>
+                    <span className="text-sm font-semibold text-slate-900">
+                      {formatMoney(c.value)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
       </CardBody>
     </Card>
   );
 }
-
-export default TaskForm;
