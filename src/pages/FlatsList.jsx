@@ -1,9 +1,10 @@
-// src/pages/FlatsList.jsx
+
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/api";
 import ResponsiveLayout from "../components/ResponsiveLayout";
 import { Card, CardBody, CardHeader, Button } from "../components/ui/ui";
+
 
 function FlatsList() {
   const [flats, setFlats] = useState([]);
@@ -82,7 +83,9 @@ function FlatsList() {
                 <CardBody>
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-500">Manage</span>
-                    <span className="text-sm font-medium text-slate-900">→</span>
+                    <span className="text-sm font-medium text-slate-900">
+                      →
+                    </span>
                   </div>
                 </CardBody>
               </Card>
