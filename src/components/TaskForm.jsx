@@ -54,7 +54,7 @@ export default function TaskForm({ members = [], onCreate }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div>
-        <label className="text-sm font-medium text-slate-700">Título *</label>
+        <label className="text-sm font-medium text-slate-700">Títle *</label>
         <input
           className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
           value={title}
@@ -65,7 +65,7 @@ export default function TaskForm({ members = [], onCreate }) {
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700">Notas</label>
+        <label className="text-sm font-medium text-slate-700">Note</label>
         <textarea
           className="mt-1 w-full min-h-[90px] rounded-lg border border-slate-300 px-3 py-2"
           value={description}
@@ -77,14 +77,16 @@ export default function TaskForm({ members = [], onCreate }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className="text-sm font-medium text-slate-700">
-            Asignar a
+            Assign to
           </label>
           <select
             className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 bg-white"
             value={assignedTo}
             onChange={(e) => setAssignedTo(e.target.value)}
           >
-            <option value="">Sin asignar</option>
+            <option value="">
+11
+Unassigned</option>
             {members.map((m) => (
               <option key={m._id} value={m._id}>
                 {m.name || m.email}
@@ -92,7 +94,7 @@ export default function TaskForm({ members = [], onCreate }) {
             ))}
           </select>
           <p className="mt-1 text-xs text-slate-500">
-            Puedes dejarla sin asignar y asignarte después.
+            You can leave it unassigned and assign it to yourself later.
           </p>
         </div>
 
