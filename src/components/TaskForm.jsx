@@ -1,124 +1,140 @@
-// frontend/src/components/TaskForm.jsx
-import { useEffect, useMemo, useState } from "react";
-import { Button, Input } from "./ui/ui";
-
-const EMPTY = {
-  title: "",
-  description: "",
-  assignedTo: "",
-  imageUrl: "",
-};
+import { useState } from "react";
+import { Card, CardBody, CardHeader, Button, Input } from "./ui/ui";
+import api from "../api/api";
 
 export default function TaskForm({ members = [], onCreate }) {
-  const [form, setForm] = useState(EMPTY);
-  const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [assignedTo, setAssignedTo] = useState("");
+  const [imageFile, setImageFile] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  // Si cambia la lista de miembros y el assignedTo ya no existe, lo limpiamos
-  useEffect(() => {
-    if (!form.assignedTo) return;
-    const exists = members.some(
-      (m) => String(m?._id) === String(form.assignedTo),
-    );
-    if (!exists) setForm((p) => ({ ...p, assignedTo: "" }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [members]);
-
-  const canSubmit = useMemo(() => {
-    return Boolean(form.title.trim()) && typeof onCreate === "function" && !submitting;
-  }, [form.title, onCreate, submitting]);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((p) => ({ ...p, [name]: value }));
-  };
+  const token = localStorage.getItem("authToken");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setErrorMsg("");
+    if (!title.trim()) return;
 
-    if (typeof onCreate !== "function") {
-      setErrorMsg("TaskForm: missing onCreate prop.");
-      return;
-    }
-
-    const payload = {
-      title: form.title.trim(),
-      description: form.description.trim() || undefined,
-      assignedTo: form.assignedTo || undefined,
-      imageUrl: form.imageUrl.trim() || undefined,
-    };
+    setLoading(true);
 
     try {
-      setSubmitting(true);
-      await onCreate(payload); // esto llama a tu createTask() en FlatDetails
-      setForm(EMPTY);
+      let imageUrl = "";
+
+      // 1️⃣ Upload image to Cloudinary (si hay)
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append("image", imageFile);
+
+        const uploadRes = await api.post("/api/upload", formData, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        imageUrl = uploadRes.data.imageUrl;
+      }
+
+      // 2️⃣ Create task
+      await onCreate({
+        title,
+        description,
+        assignedTo: assignedTo || null,
+        imageUrl,
+      });
+
+      // 3️⃣ Reset form
+      setTitle("");
+      setDescription("");
+      setAssignedTo("");
+      setImageFile(null);
     } catch (err) {
-      setErrorMsg(err?.response?.data?.message || err?.message || "Error creating task");
+      console.error("Error creating task", err);
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <div>
-        <p className="text-xs font-medium text-slate-700">Title *</p>
-        <Input
-          name="title"
-          value={form.title}
-          onChange={handleChange}
-          placeholder="e.g. Clean kitchen"
-          required
-        />
-      </div>
+    <Card>
+      <CardHeader
+        title="Add task"
+        subtitle="Create and optionally assign it"
+      />
 
-      <div>
-        <p className="text-xs font-medium text-slate-700">Notes</p>
-        <textarea
-          name="description"
-          value={form.description}
-          onChange={handleChange}
-          placeholder="Optional details..."
-          rows={3}
-          className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
-        />
-      </div>
+      <CardBody>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Title */}
+          <div>
+            <label className="text-sm font-medium text-slate-700">
+              Title *
+            </label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Clean kitchen"
+              required
+            />
+          </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <p className="text-xs font-medium text-slate-700">Assign to</p>
-          <select
-            name="assignedTo"
-            value={form.assignedTo}
-            onChange={handleChange}
-            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-300"
+          {/* Notes */}
+          <div>
+            <label className="text-sm font-medium text-slate-700">
+              Notes
+            </label>
+            <textarea
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
+              rows={3}
+              placeholder="Optional details..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+
+          {/* Assign */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-slate-700">
+                Assign to
+              </label>
+              <select
+                value={assignedTo}
+                onChange={(e) => setAssignedTo(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-300"
+              >
+                <option value="">Unassigned</option>
+                {members.map((m) => (
+                  <option key={m._id} value={m._id}>
+                    {m.name || m.email}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Photo */}
+            <div>
+              <label className="text-sm font-medium text-slate-700">
+                Photo (optional)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files[0])}
+                className="block w-full text-sm"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Max 5MB · JPG / PNG / WebP
+              </p>
+            </div>
+          </div>
+
+          {/* Submit */}
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={loading}
           >
-            <option value="">Unassigned</option>
-            {members.map((m) => (
-              <option key={m._id} value={m._id}>
-                {m?.name || m?.email || "Member"}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <p className="text-xs font-medium text-slate-700">Photo URL</p>
-          <Input
-            name="imageUrl"
-            value={form.imageUrl}
-            onChange={handleChange}
-            placeholder="https://..."
-          />
-        </div>
-      </div>
-
-      {errorMsg ? <p className="text-xs text-rose-700">{errorMsg}</p> : null}
-
-      <Button type="submit" className="w-full" disabled={!canSubmit}>
-        {submitting ? "Creating..." : "Create task"}
-      </Button>
-    </form>
+            {loading ? "Creating…" : "Create task"}
+          </Button>
+        </form>
+      </CardBody>
+    </Card>
   );
 }
