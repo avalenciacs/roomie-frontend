@@ -1,140 +1,118 @@
-import { useState } from "react";
-import { Card, CardBody, CardHeader, Button, Input } from "./ui/ui";
-import api from "../api/api";
+
+import { useMemo, useState } from "react";
+import { uploadImage } from "../api/uploads";
+import FilePicker from "./FilePicker";
+import { useToast } from "../context/toast.context";
 
 export default function TaskForm({ members = [], onCreate }) {
+  const toast = useToast();
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [assignedTo, setAssignedTo] = useState("");
-  const [imageFile, setImageFile] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [assignedTo, setAssignedTo] = useState(""); // "" = sin asignar
 
-  const token = localStorage.getItem("authToken");
+  const [file, setFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const canSubmit = useMemo(() => title.trim().length > 0, [title]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!title.trim()) return;
-
-    setLoading(true);
+    if (!canSubmit) return;
 
     try {
       let imageUrl = "";
 
-      // 1️⃣ Upload image to Cloudinary (si hay)
-      if (imageFile) {
-        const formData = new FormData();
-        formData.append("image", imageFile);
-
-        const uploadRes = await api.post("/api/upload", formData, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        imageUrl = uploadRes.data.imageUrl;
+      if (file) {
+        setIsUploading(true);
+        imageUrl = await uploadImage(file);
       }
 
-      // 2️⃣ Create task
-      await onCreate({
-        title,
-        description,
+      const payload = {
+        title: title.trim(),
+        description: description.trim(),
         assignedTo: assignedTo || null,
         imageUrl,
-      });
+      };
 
-      // 3️⃣ Reset form
+      await onCreate(payload);
+
+      toast.success("Tarea creada");
+
+      // reset
       setTitle("");
       setDescription("");
       setAssignedTo("");
-      setImageFile(null);
+      setFile(null);
     } catch (err) {
-      console.error("Error creating task", err);
+      toast.error(err?.response?.data?.message || "Error creando la tarea");
     } finally {
-      setLoading(false);
+      setIsUploading(false);
     }
   };
 
   return (
-    <Card>
-      <CardHeader
-        title="Add task"
-        subtitle="Create and optionally assign it"
-      />
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div>
+        <label className="text-sm font-medium text-slate-700">Título *</label>
+        <input
+          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Ej. Limpiar cocina"
+          required
+        />
+      </div>
 
-      <CardBody>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Title */}
-          <div>
-            <label className="text-sm font-medium text-slate-700">
-              Title *
-            </label>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Clean kitchen"
-              required
-            />
-          </div>
+      <div>
+        <label className="text-sm font-medium text-slate-700">Notas</label>
+        <textarea
+          className="mt-1 w-full min-h-[90px] rounded-lg border border-slate-300 px-3 py-2"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Detalles opcionales..."
+        />
+      </div>
 
-          {/* Notes */}
-          <div>
-            <label className="text-sm font-medium text-slate-700">
-              Notes
-            </label>
-            <textarea
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300"
-              rows={3}
-              placeholder="Optional details..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-
-          {/* Assign */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm font-medium text-slate-700">
-                Assign to
-              </label>
-              <select
-                value={assignedTo}
-                onChange={(e) => setAssignedTo(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-300"
-              >
-                <option value="">Unassigned</option>
-                {members.map((m) => (
-                  <option key={m._id} value={m._id}>
-                    {m.name || m.email}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Photo */}
-            <div>
-              <label className="text-sm font-medium text-slate-700">
-                Photo (optional)
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setImageFile(e.target.files[0])}
-                className="block w-full text-sm"
-              />
-              <p className="text-xs text-slate-500 mt-1">
-                Max 5MB · JPG / PNG / WebP
-              </p>
-            </div>
-          </div>
-
-          {/* Submit */}
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={loading}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label className="text-sm font-medium text-slate-700">
+            Asignar a
+          </label>
+          <select
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 bg-white"
+            value={assignedTo}
+            onChange={(e) => setAssignedTo(e.target.value)}
           >
-            {loading ? "Creating…" : "Create task"}
-          </Button>
-        </form>
-      </CardBody>
-    </Card>
+            <option value="">Sin asignar</option>
+            {members.map((m) => (
+              <option key={m._id} value={m._id}>
+                {m.name || m.email}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-slate-500">
+            Puedes dejarla sin asignar y asignarte después.
+          </p>
+        </div>
+
+        <div>
+          <FilePicker
+            label="Foto (opcional)"
+            helper="Máx 5MB. JPG/PNG/WebP."
+            accept="image/*"
+            value={file}
+            onChange={setFile}
+          />
+        </div>
+      </div>
+
+      <button
+        disabled={!canSubmit || isUploading}
+        className="w-full rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+      >
+        {isUploading ? "Subiendo..." : "Crear tarea"}
+      </button>
+    </form>
   );
 }
