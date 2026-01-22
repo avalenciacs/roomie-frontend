@@ -1,17 +1,94 @@
-# React + Vite
+📱 ROOMIE – Frontend
+# Roomie – Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Roomie is a web application that helps people living in shared flats manage **members, expenses, tasks and balances** in a simple and visual way.
 
-Currently, two official plugins are available:
+This repository contains the **frontend** of the Roomie project, built with React and deployed on Vercel.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+🔗 Live demo: https://roomie-home.vercel.app
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 👤 Author
 
-## Expanding the ESLint configuration
+**Anderson Valencia Castaño**  
+Web Development Student – Ironhack
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
-# roomie-frontend
+---
+
+## 🚀 Tech Stack
+
+- React (Vite)
+- React Router DOM
+- Axios
+- Tailwind CSS
+- Context API
+- Vercel (deployment)
+
+---
+
+## 📁 Project Structure
+
+
+```
+src/
+│
+├── api/ # Axios configuration
+├── assets/ # Static assets
+├── components/ # Reusable UI components
+│ ├── ui/ # Base UI elements
+│ ├── ExpenseForm.jsx
+│ ├── TaskForm.jsx
+│ ├── FlatDashboard.jsx
+│ ├── FlatTopNav.jsx
+│ ├── Header.jsx
+│ ├── IsPrivate.jsx
+│ └── ResponsiveLayout.jsx
+│
+├── constants/ # Categories, enums, helpers
+├── context/ # Auth & Toast contexts
+├── pages/ # Application pages
+│
+├── App.jsx
+├── main.jsx
+└── index.css
+
+```
+---
+
+## 🔐 Authentication
+
+- Token-based authentication (JWT)
+- Tokens are stored in `localStorage`
+- Protected routes handled with `IsPrivate`
+
+---
+
+## 🌐 Environment Variables
+
+Create a `.env` file in the root:
+
+```env
+VITE_API_URL=https://your-backend-url.vercel.app
+
+▶️ Run Locally
+npm install
+npm run dev
+
+📌 Features
+
+Flat management
+
+Member invitations via email
+
+Shared expenses with categories and receipts
+
+Task assignment and tracking
+
+Automatic balance calculation
+
+Responsive mobile-first design
+
+🧪 Notes
+
+No code is shown in slides during presentations (demo-first approach).
