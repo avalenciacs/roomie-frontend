@@ -1,3 +1,4 @@
+// frontend/src/pages/FlatDetails.jsx
 import {
   useEffect,
   useMemo,
@@ -34,7 +35,9 @@ function FlatDetails() {
   const [tasks, setTasks] = useState([]);
   const [email, setEmail] = useState("");
 
-  const [isLoading, setIsLoading] = useState(true);
+  // loading split: critical vs secondary
+  const [flatLoading, setFlatLoading] = useState(true);
+  const [countsLoading, setCountsLoading] = useState(true);
   const [pageError, setPageError] = useState("");
 
   const [openTaskId, setOpenTaskId] = useState(null);
@@ -59,6 +62,9 @@ function FlatDetails() {
   const [pendingInvites, setPendingInvites] = useState([]);
   const [invitesError, setInvitesError] = useState("");
   const [invitesLoading, setInvitesLoading] = useState(false);
+
+  // Simple in-memory cache so coming back to this page is instant
+  const cacheRef = useRef(new Map());
 
   const token = localStorage.getItem("authToken");
 
@@ -111,6 +117,7 @@ function FlatDetails() {
       headers: { Authorization: `Bearer ${token}` },
     });
     setFlat(res.data);
+    return res.data;
   }, [flatId, token]);
 
   const getExpenses = useCallback(async () => {
@@ -118,6 +125,7 @@ function FlatDetails() {
       headers: { Authorization: `Bearer ${token}` },
     });
     setExpenses(res.data);
+    return res.data;
   }, [flatId, token]);
 
   const getTasks = useCallback(async () => {
@@ -125,6 +133,7 @@ function FlatDetails() {
       headers: { Authorization: `Bearer ${token}` },
     });
     setTasks(res.data);
+    return res.data;
   }, [flatId, token]);
 
   // Load pending invitations for this flat (owner only)
@@ -133,14 +142,13 @@ function FlatDetails() {
     setInvitesLoading(true);
     setInvitesError("");
     try {
-      // backend expected: GET /api/invitations?flatId=...
       const res = await api.get(`/api/invitations?flatId=${flatId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setPendingInvites(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
       setInvitesError(
-        e?.response?.data?.message || "Error loading pending invitations",
+        e?.response?.data?.message || "Error loading pending invitations"
       );
       setPendingInvites([]);
     } finally {
@@ -148,30 +156,81 @@ function FlatDetails() {
     }
   }, [flatId, token, isOwner]);
 
+  // ───────── FAST LOAD STRATEGY ─────────
+  // 1) Paint ASAP from cache
+  // 2) Fetch flat (critical)
+  // 3) Fetch expenses/tasks (secondary) without blocking UI
   useEffect(() => {
     let alive = true;
 
+    // step 1: immediate from cache
+    const cached = cacheRef.current.get(flatId);
+    if (cached) {
+      setFlat(cached.flat ?? null);
+      setExpenses(cached.expenses ?? []);
+      setTasks(cached.tasks ?? []);
+      setFlatLoading(!cached.flat);
+      setCountsLoading(!(cached.flat && cached.expenses && cached.tasks));
+    } else {
+      setFlat(null);
+      setExpenses([]);
+      setTasks([]);
+      setFlatLoading(true);
+      setCountsLoading(true);
+    }
+
     const load = async () => {
-      setIsLoading(true);
       setPageError("");
+
+      // step 2: critical (flat)
       try {
-        await Promise.all([getFlat(), getExpenses(), getTasks()]);
+        setFlatLoading(true);
+        const flatData = await getFlat();
+        if (!alive) return;
+        cacheRef.current.set(flatId, {
+          ...(cacheRef.current.get(flatId) || {}),
+          flat: flatData,
+        });
       } catch (err) {
         const msg =
           err?.response?.data?.message ||
           "Something went wrong while loading this flat.";
         if (alive) setPageError(msg);
         toastError(msg);
+        // if flat fails, stop here
+        if (alive) setFlatLoading(false);
+        return;
       } finally {
-        if (alive) setIsLoading(false);
+        if (alive) setFlatLoading(false);
+      }
+
+      // step 3: secondary (counts) in background
+      try {
+        setCountsLoading(true);
+        const [exp, tsk] = await Promise.all([getExpenses(), getTasks()]);
+        if (!alive) return;
+        cacheRef.current.set(flatId, {
+          ...(cacheRef.current.get(flatId) || {}),
+          expenses: exp,
+          tasks: tsk,
+        });
+      } catch (err) {
+        // do not block UI, just show toast / error label
+        const msg =
+          err?.response?.data?.message ||
+          "Some sections could not be loaded yet.";
+        if (alive) setPageError((prev) => prev || msg);
+      } finally {
+        if (alive) setCountsLoading(false);
       }
     };
 
     load();
+
     return () => {
       alive = false;
     };
-  }, [getFlat, getExpenses, getTasks, toastError]);
+  }, [flatId, getFlat, getExpenses, getTasks, toastError]);
 
   // ───────── OVERLAY ─────────
   const openOverlay = (id) => {
@@ -182,7 +241,6 @@ function FlatDetails() {
     setOpenExpenseId(null);
     setOpenTaskId(null);
 
-    // When opening members overlay, refresh pending invites
     if (id === "members" && isOwner) getPendingInvites();
   };
 
@@ -231,7 +289,7 @@ function FlatDetails() {
       await api.post(
         "/api/invitations",
         { flatId, email: cleanEmail },
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       setEmail("");
@@ -256,7 +314,7 @@ function FlatDetails() {
       await api.post(
         `/api/invitations/${invitationId}/revoke`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       success("Invitation revoked");
       await getPendingInvites();
@@ -319,7 +377,7 @@ function FlatDetails() {
       await api.post(
         `/api/flats/${flatId}/tasks`,
         { ...taskData, status: "pending" },
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       success("Task created");
       await getTasks();
@@ -334,7 +392,7 @@ function FlatDetails() {
       await api.put(
         `/api/tasks/${taskId}`,
         { assignedTo: user._id },
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       success("Task assigned to you");
       await getTasks();
@@ -349,7 +407,7 @@ function FlatDetails() {
       await api.put(
         `/api/tasks/${taskId}`,
         { status: "doing" },
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       success("Task started");
       await getTasks();
@@ -364,7 +422,7 @@ function FlatDetails() {
       await api.put(
         `/api/tasks/${taskId}`,
         { status: "done" },
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       success("Task completed");
       await getTasks();
@@ -444,7 +502,13 @@ function FlatDetails() {
     }
   };
 
-  const SectionCard = ({ title, subtitle, count, onClick }) => (
+  const SkeletonPill = () => (
+    <span className="inline-flex items-center">
+      <span className="h-6 w-10 rounded-full bg-slate-200/70 animate-pulse" />
+    </span>
+  );
+
+  const SectionCard = ({ title, subtitle, count, loading, onClick }) => (
     <button type="button" onClick={onClick} className="w-full text-left">
       <Card className="transition hover:shadow-sm">
         <CardBody>
@@ -454,7 +518,7 @@ function FlatDetails() {
               <p className="text-xs text-slate-500">{subtitle}</p>
             </div>
             <div className="flex items-center gap-2">
-              <Pill tone="neutral">{count}</Pill>
+              {loading ? <SkeletonPill /> : <Pill tone="neutral">{count}</Pill>}
               <span className="text-sm font-medium text-slate-700">Show</span>
             </div>
           </div>
@@ -464,7 +528,8 @@ function FlatDetails() {
   );
 
   // ───────── STATES ─────────
-  if (isLoading) {
+  // If flat is still loading and no cached flat, show skeleton page
+  if (flatLoading && !flat) {
     return (
       <ResponsiveLayout
         top={<FlatTopNav flatId={flatId} title="Loading…" subtitle="" />}
@@ -472,8 +537,8 @@ function FlatDetails() {
       >
         <div className="grid grid-cols-1 gap-4">
           <div className="h-24 animate-pulse rounded-2xl bg-slate-200/60" />
-          <div className="h-40 animate-pulse rounded-2xl bg-slate-200/60" />
-          <div className="h-40 animate-pulse rounded-2xl bg-slate-200/60" />
+          <div className="h-24 animate-pulse rounded-2xl bg-slate-200/60" />
+          <div className="h-24 animate-pulse rounded-2xl bg-slate-200/60" />
         </div>
       </ResponsiveLayout>
     );
@@ -481,18 +546,11 @@ function FlatDetails() {
 
   if (!flat) {
     return (
-      <ResponsiveLayout
-        top={<FlatTopNav flatId={flatId} title="Flat" subtitle="" />}
-        hideHeader
-      >
+      <ResponsiveLayout top={<FlatTopNav flatId={flatId} title="Flat" subtitle="" />} hideHeader>
         <Card>
           <CardBody>
-            <p className="text-sm font-semibold text-slate-900">
-              Flat not found
-            </p>
-            {pageError ? (
-              <p className="mt-1 text-sm text-slate-600">{pageError}</p>
-            ) : null}
+            <p className="text-sm font-semibold text-slate-900">Flat not found</p>
+            {pageError ? <p className="mt-1 text-sm text-slate-600">{pageError}</p> : null}
             <div className="mt-4">
               <Link to="/">
                 <Button>Back to My Flats</Button>
@@ -526,12 +584,13 @@ function FlatDetails() {
         </Card>
       ) : null}
 
-      {/* Launcher cards */}
+      {/* Launcher cards (render immediately; counts load in background) */}
       <div className="mt-4 space-y-3">
         <SectionCard
           title="Members"
           subtitle={isOwner ? "Manage members" : "Flat members"}
           count={flat.members?.length || 0}
+          loading={false}
           onClick={() => openOverlay("members")}
         />
 
@@ -539,6 +598,7 @@ function FlatDetails() {
           title="Expenses"
           subtitle="Create and review shared expenses"
           count={expenses.length}
+          loading={countsLoading}
           onClick={() => openOverlay("expenses")}
         />
 
@@ -546,11 +606,12 @@ function FlatDetails() {
           title="Tasks"
           subtitle="Assign tasks and track progress"
           count={tasks.length}
+          loading={countsLoading}
           onClick={() => openOverlay("tasks")}
         />
       </div>
 
-      {/* OWNER SETTINGS (inline, integrated at bottom) */}
+      {/* OWNER SETTINGS */}
       {isOwner ? (
         <Card className="mt-6 border-slate-200">
           <CardHeader title="Settings" subtitle="Only visible to the owner" />
@@ -699,17 +760,17 @@ function FlatDetails() {
                       {overlay === "expenses"
                         ? "Expenses"
                         : overlay === "members"
-                          ? "Members"
-                          : "Tasks"}
+                        ? "Members"
+                        : "Tasks"}
                     </p>
                     <p className="text-xs text-slate-500">
                       {overlay === "expenses"
                         ? "Create and review shared expenses"
                         : overlay === "members"
-                          ? isOwner
-                            ? "Manage members"
-                            : "Flat members"
-                          : "Assign tasks and track progress"}
+                        ? isOwner
+                          ? "Manage members"
+                          : "Flat members"
+                        : "Assign tasks and track progress"}
                     </p>
                   </div>
                   <Button
@@ -867,34 +928,25 @@ function FlatDetails() {
                   {overlay === "expenses" ? (
                     <div className="space-y-3">
                       <Card>
-                        <CardHeader
-                          title="Add expense"
-                          subtitle="Keep it quick"
-                        />
+                        <CardHeader title="Add expense" subtitle="Keep it quick" />
                         <CardBody>
-                          <ExpenseForm
-                            members={flat.members}
-                            onCreate={createExpense}
-                          />
+                          <ExpenseForm members={flat.members} onCreate={createExpense} />
                         </CardBody>
                       </Card>
 
-                      {expenses.length === 0 ? (
+                      {countsLoading ? (
+                        <div className="h-24 rounded-2xl bg-slate-200/60 animate-pulse" />
+                      ) : expenses.length === 0 ? (
                         <Card>
                           <CardBody>
-                            <p className="text-sm text-slate-700">
-                              No expenses yet
-                            </p>
+                            <p className="text-sm text-slate-700">No expenses yet</p>
                           </CardBody>
                         </Card>
                       ) : (
                         <div className="space-y-3">
                           {expenses.map((e) => {
-                            const creatorId =
-                              e.createdBy?._id || e.createdBy || null;
-                            const isCreator =
-                              creatorId &&
-                              String(creatorId) === String(user?._id);
+                            const creatorId = e.createdBy?._id || e.createdBy || null;
+                            const isCreator = creatorId && String(creatorId) === String(user?._id);
                             const isOpen = openExpenseId === e._id;
 
                             return (
@@ -906,25 +958,20 @@ function FlatDetails() {
                                         <p className="truncate text-sm font-semibold text-slate-900">
                                           {e.title}
                                         </p>
-                                        <Pill tone="neutral">
-                                          {formatMoney(e.amount)}
-                                        </Pill>
+                                        <Pill tone="neutral">{formatMoney(e.amount)}</Pill>
                                       </div>
                                       <p className="mt-1 text-sm text-slate-700">
                                         Paid by: <UserName u={e.paidBy} />
                                       </p>
                                       <p className="text-xs text-slate-500">
-                                        {e.category || "general"} ·{" "}
-                                        {fmtDate(e.date)}
+                                        {e.category || "general"} · {fmtDate(e.date)}
                                       </p>
                                     </div>
 
                                     <Button
                                       variant="ghost"
                                       className="px-3 py-2"
-                                      onClick={() =>
-                                        toggleExpenseDetails(e._id)
-                                      }
+                                      onClick={() => toggleExpenseDetails(e._id)}
                                     >
                                       {isOpen ? "Hide" : "Details"}
                                     </Button>
@@ -936,8 +983,7 @@ function FlatDetails() {
                                         <span className="font-medium text-slate-900">
                                           Split between:
                                         </span>{" "}
-                                        {Array.isArray(e.splitBetween) &&
-                                        e.splitBetween.length ? (
+                                        {Array.isArray(e.splitBetween) && e.splitBetween.length ? (
                                           <div className="mt-2 flex flex-wrap gap-2">
                                             {e.splitBetween.map((m) => (
                                               <span
@@ -953,22 +999,14 @@ function FlatDetails() {
                                         )}
                                       </div>
 
-                                      {e.notes ? (
-                                        <div className="mt-2">
-                                          Notes: {e.notes}
-                                        </div>
-                                      ) : null}
+                                      {e.notes ? <div className="mt-2">Notes: {e.notes}</div> : null}
 
                                       {e.imageUrl ? (
                                         <div className="mt-3">
                                           <p className="text-xs font-medium text-slate-700 mb-2">
                                             Receipt
                                           </p>
-                                          <a
-                                            href={e.imageUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                          >
+                                          <a href={e.imageUrl} target="_blank" rel="noreferrer">
                                             <img
                                               src={e.imageUrl}
                                               alt="Receipt"
@@ -1004,40 +1042,30 @@ function FlatDetails() {
                   {overlay === "tasks" ? (
                     <div className="space-y-3">
                       <Card>
-                        <CardHeader
-                          title="Add task"
-                          subtitle="Create and optionally assign it"
-                        />
+                        <CardHeader title="Add task" subtitle="Create and optionally assign it" />
                         <CardBody>
-                          <TaskForm
-                            members={flat.members}
-                            onCreate={createTask}
-                          />
+                          <TaskForm members={flat.members} onCreate={createTask} />
                         </CardBody>
                       </Card>
 
-                      {sortedTasks.length === 0 ? (
+                      {countsLoading ? (
+                        <div className="h-24 rounded-2xl bg-slate-200/60 animate-pulse" />
+                      ) : sortedTasks.length === 0 ? (
                         <Card>
                           <CardBody>
-                            <p className="text-sm text-slate-700">
-                              No tasks yet
-                            </p>
+                            <p className="text-sm text-slate-700">No tasks yet</p>
                           </CardBody>
                         </Card>
                       ) : (
                         <div className="space-y-3">
                           {sortedTasks.map((t) => {
-                            const assignedId =
-                              t.assignedTo?._id || t.assignedTo || null;
-                            const creatorId =
-                              t.createdBy?._id || t.createdBy || null;
+                            const assignedId = t.assignedTo?._id || t.assignedTo || null;
+                            const creatorId = t.createdBy?._id || t.createdBy || null;
 
                             const isAssignedToMe =
-                              assignedId &&
-                              String(assignedId) === String(user?._id);
+                              assignedId && String(assignedId) === String(user?._id);
                             const isCreator =
-                              creatorId &&
-                              String(creatorId) === String(user?._id);
+                              creatorId && String(creatorId) === String(user?._id);
                             const isOpen = openTaskId === t._id;
 
                             return (
@@ -1056,9 +1084,7 @@ function FlatDetails() {
                                       <p className="mt-1 text-sm text-slate-700">
                                         Assigned to:{" "}
                                         <span className="font-medium text-slate-900">
-                                          {t.assignedTo
-                                            ? nameOrEmail(t.assignedTo)
-                                            : "Unassigned"}
+                                          {t.assignedTo ? nameOrEmail(t.assignedTo) : "Unassigned"}
                                         </span>
                                       </p>
                                     </div>
@@ -1074,22 +1100,14 @@ function FlatDetails() {
                                         </Button>
                                       ) : null}
 
-                                      {isAssignedToMe &&
-                                      t.status === "pending" ? (
-                                        <Button
-                                          className="px-3 py-2"
-                                          onClick={() => startTask(t._id)}
-                                        >
+                                      {isAssignedToMe && t.status === "pending" ? (
+                                        <Button className="px-3 py-2" onClick={() => startTask(t._id)}>
                                           Start
                                         </Button>
                                       ) : null}
 
-                                      {isAssignedToMe &&
-                                      t.status === "doing" ? (
-                                        <Button
-                                          className="px-3 py-2"
-                                          onClick={() => markTaskDone(t._id)}
-                                        >
+                                      {isAssignedToMe && t.status === "doing" ? (
+                                        <Button className="px-3 py-2" onClick={() => markTaskDone(t._id)}>
                                           Done
                                         </Button>
                                       ) : null}
@@ -1107,43 +1125,23 @@ function FlatDetails() {
                                   {isOpen ? (
                                     <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-700">
                                       <div>
-                                        <span className="font-medium text-slate-900">
-                                          Created by:
-                                        </span>{" "}
+                                        <span className="font-medium text-slate-900">Created by:</span>{" "}
                                         <span title={t.createdBy?.email || ""}>
-                                          {t.createdBy
-                                            ? nameOrEmail(t.createdBy)
-                                            : "Unknown"}
+                                          {t.createdBy ? nameOrEmail(t.createdBy) : "Unknown"}
                                         </span>
                                       </div>
 
                                       <div className="mt-2">
-                                        <span className="font-medium text-slate-900">
-                                          Created at:
-                                        </span>{" "}
-                                        {t.createdAt
-                                          ? new Date(
-                                              t.createdAt,
-                                            ).toLocaleString()
-                                          : "-"}
+                                        <span className="font-medium text-slate-900">Created at:</span>{" "}
+                                        {t.createdAt ? new Date(t.createdAt).toLocaleString() : "-"}
                                       </div>
 
-                                      {t.description ? (
-                                        <div className="mt-2">
-                                          Notes: {t.description}
-                                        </div>
-                                      ) : null}
+                                      {t.description ? <div className="mt-2">Notes: {t.description}</div> : null}
 
                                       {t.imageUrl ? (
                                         <div className="mt-3">
-                                          <p className="text-xs font-medium text-slate-700 mb-2">
-                                            Photo
-                                          </p>
-                                          <a
-                                            href={t.imageUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                          >
+                                          <p className="text-xs font-medium text-slate-700 mb-2">Photo</p>
+                                          <a href={t.imageUrl} target="_blank" rel="noreferrer">
                                             <img
                                               src={t.imageUrl}
                                               alt="Task"
