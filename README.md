@@ -1,4 +1,4 @@
-📱 ROOMIE – Frontend
+
 # Roomie – Frontend
 
 Roomie is a web application that helps people living in shared flats manage **members, expenses, tasks and balances** in a simple and visual way.
