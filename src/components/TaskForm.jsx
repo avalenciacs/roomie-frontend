@@ -1,4 +1,3 @@
-
 import { useMemo, useState } from "react";
 import { uploadImage } from "../api/uploads";
 import FilePicker from "./FilePicker";
@@ -9,7 +8,7 @@ export default function TaskForm({ members = [], onCreate }) {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [assignedTo, setAssignedTo] = useState(""); // "" = sin asignar
+  const [assignedTo, setAssignedTo] = useState(""); // "" = unassigned
 
   const [file, setFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -37,7 +36,7 @@ export default function TaskForm({ members = [], onCreate }) {
 
       await onCreate(payload);
 
-      toast.success("Tarea creada");
+      toast.success("Task created");
 
       // reset
       setTitle("");
@@ -45,7 +44,7 @@ export default function TaskForm({ members = [], onCreate }) {
       setAssignedTo("");
       setFile(null);
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Error creando la tarea");
+      toast.error(err?.response?.data?.message || "Error creating task");
     } finally {
       setIsUploading(false);
     }
@@ -54,23 +53,23 @@ export default function TaskForm({ members = [], onCreate }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div>
-        <label className="text-sm font-medium text-slate-700">Títle *</label>
+        <label className="text-sm font-medium text-slate-700">Title *</label>
         <input
           className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Ej. Limpiar cocina"
+          placeholder="e.g. Clean kitchen"
           required
         />
       </div>
 
       <div>
-        <label className="text-sm font-medium text-slate-700">Note</label>
+        <label className="text-sm font-medium text-slate-700">Notes</label>
         <textarea
           className="mt-1 w-full min-h-[90px] rounded-lg border border-slate-300 px-3 py-2"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Detalles opcionales..."
+          placeholder="Optional details..."
         />
       </div>
 
@@ -84,9 +83,7 @@ export default function TaskForm({ members = [], onCreate }) {
             value={assignedTo}
             onChange={(e) => setAssignedTo(e.target.value)}
           >
-            <option value="">
-11
-Unassigned</option>
+            <option value="">Unassigned</option>
             {members.map((m) => (
               <option key={m._id} value={m._id}>
                 {m.name || m.email}
@@ -100,8 +97,8 @@ Unassigned</option>
 
         <div>
           <FilePicker
-            label="Foto (opcional)"
-            helper="Máx 5MB. JPG/PNG/WebP."
+            label="Photo (optional)"
+            helper="Max 5MB. JPG/PNG/WebP."
             accept="image/*"
             value={file}
             onChange={setFile}
@@ -113,7 +110,7 @@ Unassigned</option>
         disabled={!canSubmit || isUploading}
         className="w-full rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
       >
-        {isUploading ? "Subiendo..." : "Crear tarea"}
+        {isUploading ? "Uploading..." : "Create task"}
       </button>
     </form>
   );
